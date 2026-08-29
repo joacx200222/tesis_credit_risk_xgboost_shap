@@ -1,0 +1,96 @@
+{
+  "modelos": {
+    "Regresion_Logistica": {
+      "nombre_mostrar": "Regresión Logística (Scorecard Tradicional)",
+      "tipo": "Paramétrico Lineal",
+      "metricas": {
+        "threshold": 0.35,
+        "auc_roc": 0.7392,
+        "pr_auc": 0.3243,
+        "ks_stat_pct": 36.55,
+        "ks_optimal_cutoff": 0.1506,
+        "f1_score": 0.2362,
+        "recall_morosos": 0.1546,
+        "precision_morosos": 0.5,
+        "specificity": 0.9771,
+        "accuracy": 0.8708,
+        "confusion_matrix": {
+          "TP": 30,
+          "FP": 30,
+          "TN": 1278,
+          "FN": 164
+        }
+      }
+    },
+    "Random_Forest": {
+      "nombre_mostrar": "Random Forest Classifier",
+      "tipo": "Ensamble Bagging",
+      "metricas": {
+        "threshold": 0.4,
+        "auc_roc": 0.7444,
+        "pr_auc": 0.3262,
+        "ks_stat_pct": 36.55,
+        "ks_optimal_cutoff": 0.3963,
+        "f1_score": 0.3734,
+        "recall_morosos": 0.6082,
+        "precision_morosos": 0.2694,
+        "specificity": 0.7554,
+        "accuracy": 0.7364,
+        "confusion_matrix": {
+          "TP": 118,
+          "FP": 320,
+          "TN": 988,
+          "FN": 76
+        }
+      }
+    },
+    "XGBoost_Propuesto": {
+      "nombre_mostrar": "XGBoost + Cost-Sensitive (Modelo de Tesis)",
+      "tipo": "Gradient Boosting Decision Trees (GBDT)",
+      "metricas": {
+        "threshold": 0.5,
+        "auc_roc": 0.7331,
+        "pr_auc": 0.3077,
+        "ks_stat_pct": 32.78,
+        "ks_optimal_cutoff": 0.3205,
+        "f1_score": 0.3686,
+        "recall_morosos": 0.4485,
+        "precision_morosos": 0.3129,
+        "specificity": 0.854,
+        "accuracy": 0.8016,
+        "confusion_matrix": {
+          "TP": 87,
+          "FP": 191,
+          "TN": 1117,
+          "FN": 107
+        }
+      }
+    }
+  },
+  "resumen_comparativo": [
+    {
+      "Modelo": "Regresión Logística (Línea Base)",
+      "AUC-ROC": 0.7392,
+      "PR-AUC": 0.3243,
+      "KS-Statistic (%)": 36.55,
+      "F1-Score": 0.2362,
+      "Recall Morosos": 0.1546
+    },
+    {
+      "Modelo": "Random Forest (Línea Base)",
+      "AUC-ROC": 0.7444,
+      "PR-AUC": 0.3262,
+      "KS-Statistic (%)": 36.55,
+      "F1-Score": 0.3734,
+      "Recall Morosos": 0.6082
+    },
+    {
+      "Modelo": "XGBoost (Modelo Propuesto)",
+      "AUC-ROC": 0.7331,
+      "PR-AUC": 0.3077,
+      "KS-Statistic (%)": 32.78,
+      "F1-Score": 0.3686,
+      "Recall Morosos": 0.4485
+    }
+  ]
+}

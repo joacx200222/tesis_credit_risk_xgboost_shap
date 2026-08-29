@@ -1,0 +1,267 @@
+{
+  "numerical_features": [
+    "edad",
+    "antiguedad_negocio_meses",
+    "ingreso_mensual_neto",
+    "gasto_mensual_operativo",
+    "monto_solicitado",
+    "plazo_meses",
+    "tasa_interes_anual",
+    "num_consultas_centrales_ult_6m",
+    "puntualidad_servicios_basicos",
+    "volumen_transacciones_digitales",
+    "frecuencia_transacciones_yape_mes",
+    "antiguedad_celular_meses",
+    "variabilidad_ingresos_cv",
+    "cuota_mensual",
+    "flujo_caja_libre_mensual",
+    "ratio_cuota_ingreso",
+    "ratio_cobertura_deuda",
+    "ratio_monto_ingreso",
+    "indice_estabilidad_negocio",
+    "score_comportamiento_alternativo"
+  ],
+  "categorical_features": [
+    "genero",
+    "estado_civil",
+    "nivel_educacion",
+    "tipo_vivienda",
+    "region_peru",
+    "rubro_negocio",
+    "es_informal",
+    "posee_garantia_o_aval"
+  ],
+  "num_medians_": {
+    "edad": 43.0,
+    "antiguedad_negocio_meses": 35.0,
+    "ingreso_mensual_neto": 2450.0,
+    "gasto_mensual_operativo": 1440.0,
+    "monto_solicitado": 5800.0,
+    "plazo_meses": 18.0,
+    "tasa_interes_anual": 0.416,
+    "num_consultas_centrales_ult_6m": 1.0,
+    "puntualidad_servicios_basicos": 0.72,
+    "volumen_transacciones_digitales": 2070.0,
+    "frecuencia_transacciones_yape_mes": 35.0,
+    "antiguedad_celular_meses": 32.0,
+    "variabilidad_ingresos_cv": 0.319,
+    "cuota_mensual": 464.81,
+    "flujo_caja_libre_mensual": 950.0,
+    "ratio_cuota_ingreso": 0.191,
+    "ratio_cobertura_deuda": 2.0597,
+    "ratio_monto_ingreso": 2.4889,
+    "indice_estabilidad_negocio": 2.1469,
+    "score_comportamiento_alternativo": 0.751
+  },
+  "num_iqr_": {
+    "edad": [
+      43.0,
+      23.0
+    ],
+    "antiguedad_negocio_meses": [
+      35.0,
+      27.0
+    ],
+    "ingreso_mensual_neto": [
+      2450.0,
+      1870.0
+    ],
+    "gasto_mensual_operativo": [
+      1440.0,
+      1140.0
+    ],
+    "monto_solicitado": [
+      5800.0,
+      5100.0
+    ],
+    "plazo_meses": [
+      18.0,
+      12.0
+    ],
+    "tasa_interes_anual": [
+      0.416,
+      0.15099999999999997
+    ],
+    "num_consultas_centrales_ult_6m": [
+      1.0,
+      1.0
+    ],
+    "puntualidad_servicios_basicos": [
+      0.72,
+      0.20999999999999996
+    ],
+    "volumen_transacciones_digitales": [
+      2070.0,
+      1220.0
+    ],
+    "frecuencia_transacciones_yape_mes": [
+      35.0,
+      8.0
+    ],
+    "antiguedad_celular_meses": [
+      32.0,
+      28.0
+    ],
+    "variabilidad_ingresos_cv": [
+      0.319,
+      0.234
+    ],
+    "cuota_mensual": [
+      464.81,
+      478.585
+    ],
+    "flujo_caja_libre_mensual": [
+      950.0,
+      810.0
+    ],
+    "ratio_cuota_ingreso": [
+      0.191,
+      0.13049999999999998
+    ],
+    "ratio_cobertura_deuda": [
+      2.0597,
+      1.5552
+    ],
+    "ratio_monto_ingreso": [
+      2.4889,
+      1.28295
+    ],
+    "indice_estabilidad_negocio": [
+      2.1469,
+      0.7415000000000003
+    ],
+    "score_comportamiento_alternativo": [
+      0.751,
+      0.16189999999999993
+    ]
+  },
+  "cat_modes_": {
+    "genero": "F",
+    "estado_civil": "Casado(a)",
+    "nivel_educacion": "Secundaria Completa",
+    "tipo_vivienda": "Propia",
+    "region_peru": "Lima/Callao",
+    "rubro_negocio": "Comercio Minorista / Bodega",
+    "es_informal": "1",
+    "posee_garantia_o_aval": "0"
+  },
+  "cat_categories_": {
+    "genero": [
+      "F",
+      "M"
+    ],
+    "estado_civil": [
+      "Casado(a)",
+      "Conviviente",
+      "Divorciado(a)",
+      "Soltero(a)",
+      "Viudo(a)"
+    ],
+    "nivel_educacion": [
+      "Postgrado",
+      "Primaria Completa",
+      "Secundaria Completa",
+      "Técnico Superior",
+      "Universitario Completo",
+      "Universitario Incompleto"
+    ],
+    "tipo_vivienda": [
+      "Alquilada",
+      "Familiar",
+      "Hipotecada",
+      "Propia"
+    ],
+    "region_peru": [
+      "Arequipa",
+      "Cusco",
+      "Ica",
+      "Junín",
+      "La Libertad",
+      "Lambayeque",
+      "Lima/Callao",
+      "Piura",
+      "Puno",
+      "San Martín",
+      "Áncash"
+    ],
+    "rubro_negocio": [
+      "Agropecuario / Comercialización Rural",
+      "Comercio Minorista / Bodega",
+      "Ferretería / Materiales de Construcción",
+      "Gastronomía / Restaurante",
+      "Manufactura / Confección Textil",
+      "Servicios Técnicos / Profesionales",
+      "Transporte / Mototaxi / Taxi"
+    ],
+    "es_informal": [
+      "0",
+      "1"
+    ],
+    "posee_garantia_o_aval": [
+      "0",
+      "1"
+    ]
+  },
+  "feature_names_out_": [
+    "edad",
+    "antiguedad_negocio_meses",
+    "ingreso_mensual_neto",
+    "gasto_mensual_operativo",
+    "monto_solicitado",
+    "plazo_meses",
+    "tasa_interes_anual",
+    "num_consultas_centrales_ult_6m",
+    "puntualidad_servicios_basicos",
+    "volumen_transacciones_digitales",
+    "frecuencia_transacciones_yape_mes",
+    "antiguedad_celular_meses",
+    "variabilidad_ingresos_cv",
+    "cuota_mensual",
+    "flujo_caja_libre_mensual",
+    "ratio_cuota_ingreso",
+    "ratio_cobertura_deuda",
+    "ratio_monto_ingreso",
+    "indice_estabilidad_negocio",
+    "score_comportamiento_alternativo",
+    "genero_F",
+    "genero_M",
+    "estado_civil_Casado(a)",
+    "estado_civil_Conviviente",
+    "estado_civil_Divorciado(a)",
+    "estado_civil_Soltero(a)",
+    "estado_civil_Viudo(a)",
+    "nivel_educacion_Postgrado",
+    "nivel_educacion_Primaria Completa",
+    "nivel_educacion_Secundaria Completa",
+    "nivel_educacion_Técnico Superior",
+    "nivel_educacion_Universitario Completo",
+    "nivel_educacion_Universitario Incompleto",
+    "tipo_vivienda_Alquilada",
+    "tipo_vivienda_Familiar",
+    "tipo_vivienda_Hipotecada",
+    "tipo_vivienda_Propia",
+    "region_peru_Arequipa",
+    "region_peru_Cusco",
+    "region_peru_Ica",
+    "region_peru_Junín",
+    "region_peru_La Libertad",
+    "region_peru_Lambayeque",
+    "region_peru_Lima/Callao",
+    "region_peru_Piura",
+    "region_peru_Puno",
+    "region_peru_San Martín",
+    "region_peru_Áncash",
+    "rubro_negocio_Agropecuario / Comercialización Rural",
+    "rubro_negocio_Comercio Minorista / Bodega",
+    "rubro_negocio_Ferretería / Materiales de Construcción",
+    "rubro_negocio_Gastronomía / Restaurante",
+    "rubro_negocio_Manufactura / Confección Textil",
+    "rubro_negocio_Servicios Técnicos / Profesionales",
+    "rubro_negocio_Transporte / Mototaxi / Taxi",
+    "es_informal_0",
+    "es_informal_1",
+    "posee_garantia_o_aval_0",
+    "posee_garantia_o_aval_1"
+  ],
+  "is_fitted_": true
+}
