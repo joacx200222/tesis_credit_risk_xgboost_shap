@@ -1,10 +1,3 @@
-"""
-Descripción: Módulo de Inteligencia Artificial Explicable (XAI) basado en
-             valores de Shapley (TreeSHAP) para explicabilidad global (portafolio)
-             y local (solicitud individual), con extracción de razones de
-             acción adversa (Adverse Action Reasons) conforme a la Res. SBS 3780-2021.
-"""
-
 import json
 import joblib
 import numpy as np
@@ -28,7 +21,6 @@ from src.model_evaluation import (
 )
 
 
-# Diccionario de nombres amigables para el analista de riesgo y comités de crédito
 FEATURE_FRIENDLY_NAMES = {
     "indice_inclusion_digital": "Índice de Inclusión Digital (Yape/Plin)",
     "indice_resiliencia_financiera": "Resiliencia ante Gastos Imprevistos",
@@ -78,7 +70,7 @@ FEATURE_FRIENDLY_NAMES = {
 }
 
 
-# Mapeo oficial de factores SHAP a Razones de Acción Adversa (SBS Res. N.° 3780-2021)
+# Mapeo oficial de factores SHAP a Razones de Acción Adversa
 ADVERSE_ACTION_REASON_MAP = {
     "indice_vulnerabilidad_liquidez": "Insuficiencia habitual de ingresos familiares reportada en el hogar.",
     "indice_resiliencia_financiera": "Incapacidad para absorber gastos de emergencia sin recurrir a endeudamiento adicional.",

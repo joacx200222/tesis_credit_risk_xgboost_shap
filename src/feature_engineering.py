@@ -1,9 +1,3 @@
-"""
-Descripción: Transformación de la base de datos empírica SBS/CAF 2022,
-             mapeo conceptual de los 4 ejes e ingeniería de características
-             alternativas e índices sintéticos.
-"""
-
 import numpy as np
 import pandas as pd
 from pathlib import Path

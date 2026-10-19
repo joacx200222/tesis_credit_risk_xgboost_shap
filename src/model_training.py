@@ -1,8 +1,3 @@
-"""
-Descripción: Entrenamiento, ajuste de hiperparámetros y serialización de modelos
-             (XGBoost vs Regresión Logística y Random Forest) con la base SBS 2022.
-"""
-
 import json
 import joblib
 import numpy as np

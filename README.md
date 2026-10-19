@@ -39,8 +39,7 @@ tesis_credit_risk_xgboost_shap/
 │   ├── model_training.py         # Regresión Logística vs Random Forest vs XGBoost
 │   ├── model_evaluation.py       # AUC-ROC, PR-AUC, KS, F1, pérdida esperada, score y decisión
 │   ├── explainability.py         # TreeSHAP, razones de acción adversa y dictamen
-│   ├── app.py                    # Prototipo web en Streamlit
-│   └── generate_synthetic_data.py  # (Legado) generador sintético de la versión inicial; no se usa
+│   └── app.py                    # Prototipo web en Streamlit
 ├── tests/test_pipeline.py        # 9 pruebas unitarias y de integración
 ├── Dockerfile
 └── requirements.txt

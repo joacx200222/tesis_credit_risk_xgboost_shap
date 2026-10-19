@@ -1,8 +1,3 @@
-"""
-Descripción: Configuración centralizada, constantes de negocio y rutas del sistema
-             para la base empírica oficial SBS/CAF 2022.
-"""
-
 from pathlib import Path
 
 # 1. Rutas del proyecto
@@ -11,7 +6,6 @@ DATA_DIR = BASE_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 MODELS_DIR = BASE_DIR / "models"
-DOCS_DIR = BASE_DIR / "docs"
 
 # Archivos específicos de datos
 RAW_DTA_PATH = BASE_DIR / "BD_Encuesta_Capacidades_Financieras_2022.dta"
