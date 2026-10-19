@@ -1,18 +1,12 @@
 """
-==============================================================================
-PROYECTO DE TESIS - UNIVERSIDAD DE LIMA
-Carrera: Ingeniería de Sistemas
-Título: Modelo de evaluación de riesgo crediticio para microfinanzas e
-        inclusión financiera mediante XGBoost e Inteligencia Artificial
-        Explicable (SHAP)
-Archivo: src/app.py
 Descripción: Prototipo web interactivo en Streamlit (CRISP-DM Fase 6: Despliegue)
-             para la evaluación crediticia, explicabilidad XAI local/global,
-             análisis What-If y benchmarking de modelos.
-==============================================================================
+             para evaluación de microcréditos con la base empírica oficial SBS/CAF 2022,
+             explicabilidad local (TreeSHAP Waterfall) y global (Beeswarm),
+             análisis What-If y razones de acción adversa según la Res. SBS 3780-2021.
 """
 
 import json
+import joblib
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -23,15 +17,19 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
 from src.data_preprocessing import CreditDataPreprocessor
 from src.model_training import CreditRiskXGBoostWrapper
-from src.explainability import CreditRiskExplainer, FEATURE_FRIENDLY_NAMES
+from src.explainability import (
+    CreditRiskExplainer,
+    FEATURE_FRIENDLY_NAMES,
+    ADVERSE_ACTION_REASON_MAP,
+    get_default_explainer
+)
 from src.model_evaluation import (
-    compute_classification_metrics,
     calculate_expected_loss,
     convert_pd_to_credit_score,
     get_credit_decision
 )
 
-# Intentar importar streamlit y visualizadores
+# Streamlit
 try:
     import streamlit as st
     STREAMLIT_AVAILABLE = True
@@ -40,76 +38,167 @@ except ImportError:
 
 
 def create_sample_profiles():
-    """Perfiles preestablecidos para pruebas rápidas de originación."""
+    """Perfiles preestablecidos basados en el cuestionario oficial SBS/CAF 2022."""
     return {
-        "🟢 Perfil Aprobado (Microempresario Consolidado)": {
-            "edad": 42,
-            "genero": "F",
-            "estado_civil": "Casado(a)",
-            "nivel_educacion": "Técnico Superior",
-            "tipo_vivienda": "Propia",
-            "region_peru": "Lima/Callao",
-            "rubro_negocio": "Comercio Minorista / Bodega",
-            "antiguedad_negocio_meses": 48,
-            "es_informal": 0,
-            "ingreso_mensual_neto": 4500.0,
-            "gasto_mensual_operativo": 2200.0,
-            "monto_solicitado": 6000.0,
-            "plazo_meses": 18,
-            "tasa_interes_anual": 0.32,
-            "num_consultas_centrales_ult_6m": 0,
-            "posee_garantia_o_aval": 1,
-            "puntualidad_servicios_basicos": 0.95,
-            "volumen_transacciones_digitales": 2800.0,
-            "frecuencia_transacciones_yape_mes": 60,
-            "antiguedad_celular_meses": 36,
-            "variabilidad_ingresos_cv": 0.12
+        "🟢 Perfil Aprobado (Bajo Riesgo)": {
+            "edad": 38,
+            "carga_familiar_adultos": 2,
+            "carga_familiar_ninos": 1,
+            "genero": "Mujer",
+            "nivel_educacion": "Superior Técnico Completo",
+            "departamento": "Lima / Callao",
+            "ambito": "Urbano",
+            "condicion_laboral": "Trabajador Independiente / Cuenta propia",
+            "es_informal": "Informal / Sin RUC",
+            "adopcion_yape_plin": "Sí",
+            "tiene_billetera_activa": "Sí",
+            "frecuencia_yape_plin": 4,
+            "pago_celular_frecuencia": 5,
+            "uso_whatsapp": 4,
+            "uso_internet": 4,
+            "preferencia_efectivo": 1,
+            "confianza_herramientas_digitales": 5,
+            "guarda_dinero_recibos": "Sí",
+            "anota_recibos_vencer": "Sí",
+            "puntualidad_pago_deudas": 5,
+            "rango_ingreso": "De S/ 2,401 a S/ 4,000",
+            "nivel_socioeconomico": "C",
+            "ingresos_estables": "Sí",
+            "planifica_presupuesto": "Sí",
+            "anota_gastos": "Sí",
+            "capacidad_afrontar_imprevisto": "Sí",
+            "dificultad_emergencia_1000": 1,
+            "meses_resiliencia_desempleo": 4,
+            "sobra_dinero_fin_mes": 4,
+            "ingreso_apenas_alcanza": 1,
+            "percepcion_sobreendeudado": 1,
+            "tiene_cuenta_ahorro": "Sí",
+            "tiene_tarjeta_credito": "Sí",
+            "tiene_prestamo_personal": "No",
+            "ha_usado_prestamista": "No",
+            "ha_usado_pandero_junta": "No",
+            "credito_formal_negado": "No",
+            "monto_solicitado": 6000.0
         },
-        "🟡 Perfil Thin-File / Inclusión (Emprendedor Informal con Yape)": {
+        "🟡 Perfil Revisión Manual (Riesgo Medio)": {
             "edad": 29,
-            "genero": "M",
-            "estado_civil": "Soltero(a)",
+            "carga_familiar_adultos": 1,
+            "carga_familiar_ninos": 2,
+            "genero": "Hombre",
             "nivel_educacion": "Secundaria Completa",
-            "tipo_vivienda": "Familiar",
-            "region_peru": "Arequipa",
-            "rubro_negocio": "Gastronomía / Restaurante",
-            "antiguedad_negocio_meses": 14,
-            "es_informal": 1,
-            "ingreso_mensual_neto": 3200.0,
-            "gasto_mensual_operativo": 1800.0,
-            "monto_solicitado": 4500.0,
-            "plazo_meses": 12,
-            "tasa_interes_anual": 0.42,
-            "num_consultas_centrales_ult_6m": 1,
-            "posee_garantia_o_aval": 0,
-            "puntualidad_servicios_basicos": 0.88,
-            "volumen_transacciones_digitales": 1950.0,
-            "frecuencia_transacciones_yape_mes": 45,
-            "antiguedad_celular_meses": 20,
-            "variabilidad_ingresos_cv": 0.22
+            "departamento": "Arequipa",
+            "ambito": "Urbano",
+            "condicion_laboral": "Trabajador Independiente / Cuenta propia",
+            "es_informal": "Informal / Sin RUC",
+            "adopcion_yape_plin": "Sí",
+            "tiene_billetera_activa": "Sí",
+            "frecuencia_yape_plin": 3,
+            "pago_celular_frecuencia": 3,
+            "uso_whatsapp": 4,
+            "uso_internet": 3,
+            "preferencia_efectivo": 3,
+            "confianza_herramientas_digitales": 3,
+            "guarda_dinero_recibos": "Sí",
+            "anota_recibos_vencer": "No",
+            "puntualidad_pago_deudas": 4,
+            "rango_ingreso": "De S/ 1,201 a S/ 2,400",
+            "nivel_socioeconomico": "D",
+            "ingresos_estables": "Sí",
+            "planifica_presupuesto": "No",
+            "anota_gastos": "Sí",
+            "capacidad_afrontar_imprevisto": "No",
+            "dificultad_emergencia_1000": 3,
+            "meses_resiliencia_desempleo": 2,
+            "sobra_dinero_fin_mes": 2,
+            "ingreso_apenas_alcanza": 3,
+            "percepcion_sobreendeudado": 2,
+            "tiene_cuenta_ahorro": "Sí",
+            "tiene_tarjeta_credito": "No",
+            "tiene_prestamo_personal": "No",
+            "ha_usado_prestamista": "No",
+            "ha_usado_pandero_junta": "Sí",
+            "credito_formal_negado": "No",
+            "monto_solicitado": 4500.0
         },
-        "🔴 Perfil Alto Riesgo (Sobreendeudado / Consultas Frecuentes)": {
-            "edad": 25,
-            "genero": "M",
-            "estado_civil": "Soltero(a)",
+        "🔴 Perfil Rechazado (Alto Riesgo)": {
+            "edad": 45,
+            "carga_familiar_adultos": 2,
+            "carga_familiar_ninos": 3,
+            "genero": "Hombre",
+            "nivel_educacion": "Primaria / Sin Instrucción",
+            "departamento": "Piura",
+            "ambito": "Rural",
+            "condicion_laboral": "Campesino / Agricultor / Ganadero",
+            "es_informal": "Informal / Sin RUC",
+            "adopcion_yape_plin": "No",
+            "tiene_billetera_activa": "No",
+            "frecuencia_yape_plin": 1,
+            "pago_celular_frecuencia": 1,
+            "uso_whatsapp": 1,
+            "uso_internet": 1,
+            "preferencia_efectivo": 5,
+            "confianza_herramientas_digitales": 1,
+            "guarda_dinero_recibos": "No",
+            "anota_recibos_vencer": "No",
+            "puntualidad_pago_deudas": 2,
+            "rango_ingreso": "Menor a S/ 600",
+            "nivel_socioeconomico": "E",
+            "ingresos_estables": "No",
+            "planifica_presupuesto": "No",
+            "anota_gastos": "No",
+            "capacidad_afrontar_imprevisto": "No",
+            "dificultad_emergencia_1000": 4,
+            "meses_resiliencia_desempleo": 1,
+            "sobra_dinero_fin_mes": 1,
+            "ingreso_apenas_alcanza": 5,
+            "percepcion_sobreendeudado": 5,
+            "tiene_cuenta_ahorro": "No",
+            "tiene_tarjeta_credito": "No",
+            "tiene_prestamo_personal": "No",
+            "ha_usado_prestamista": "Sí",
+            "ha_usado_pandero_junta": "Sí",
+            "credito_formal_negado": "Sí",
+            "monto_solicitado": 3500.0
+        },
+        "⚪ Perfil en Blanco (Personalizado)": {
+            "edad": 30,
+            "carga_familiar_adultos": 1,
+            "carga_familiar_ninos": 0,
+            "genero": "Mujer",
             "nivel_educacion": "Secundaria Completa",
-            "tipo_vivienda": "Alquilada",
-            "region_peru": "Piura",
-            "rubro_negocio": "Transporte / Mototaxi / Taxi",
-            "antiguedad_negocio_meses": 6,
-            "es_informal": 1,
-            "ingreso_mensual_neto": 2000.0,
-            "gasto_mensual_operativo": 1400.0,
-            "monto_solicitado": 9000.0,
-            "plazo_meses": 12,
-            "tasa_interes_anual": 0.55,
-            "num_consultas_centrales_ult_6m": 5,
-            "posee_garantia_o_aval": 0,
-            "puntualidad_servicios_basicos": 0.45,
-            "volumen_transacciones_digitales": 300.0,
-            "frecuencia_transacciones_yape_mes": 8,
-            "antiguedad_celular_meses": 4,
-            "variabilidad_ingresos_cv": 0.52
+            "departamento": "Lima / Callao",
+            "ambito": "Urbano",
+            "condicion_laboral": "Trabajador Independiente / Cuenta propia",
+            "es_informal": "Informal / Sin RUC",
+            "adopcion_yape_plin": "No",
+            "tiene_billetera_activa": "No",
+            "frecuencia_yape_plin": 1,
+            "pago_celular_frecuencia": 1,
+            "uso_whatsapp": 1,
+            "uso_internet": 1,
+            "preferencia_efectivo": 3,
+            "confianza_herramientas_digitales": 3,
+            "guarda_dinero_recibos": "No",
+            "anota_recibos_vencer": "No",
+            "puntualidad_pago_deudas": 3,
+            "rango_ingreso": "De S/ 1,201 a S/ 2,400",
+            "nivel_socioeconomico": "C",
+            "ingresos_estables": "No",
+            "planifica_presupuesto": "No",
+            "anota_gastos": "No",
+            "capacidad_afrontar_imprevisto": "No",
+            "dificultad_emergencia_1000": 2,
+            "meses_resiliencia_desempleo": 2,
+            "sobra_dinero_fin_mes": 3,
+            "ingreso_apenas_alcanza": 3,
+            "percepcion_sobreendeudado": 3,
+            "tiene_cuenta_ahorro": "No",
+            "tiene_tarjeta_credito": "No",
+            "tiene_prestamo_personal": "No",
+            "ha_usado_prestamista": "No",
+            "ha_usado_pandero_junta": "No",
+            "credito_formal_negado": "No",
+            "monto_solicitado": 2000.0
         }
     }
 
@@ -117,7 +206,19 @@ def create_sample_profiles():
 def load_system_artifacts():
     """Carga los artefactos del modelo y datasets procesados."""
     preprocessor = CreditDataPreprocessor.load(config.PREPROCESSOR_PATH)
-    model = CreditRiskXGBoostWrapper.load(config.XGBOOST_MODEL_JSON)
+    
+    # Intentar cargar desde model.joblib o json
+    model = None
+    alias_path = config.MODELS_DIR / "model.joblib"
+    if alias_path.exists():
+        try:
+            model = joblib.load(alias_path)
+        except Exception:
+            model = None
+
+    if model is None:
+        model = CreditRiskXGBoostWrapper.load(config.XGBOOST_MODEL_JSON)
+
     explainer = CreditRiskExplainer(model, preprocessor)
     
     benchmark_data = {}
@@ -133,131 +234,184 @@ def load_system_artifacts():
 def run_streamlit_app():
     """Función principal de la aplicación Streamlit."""
     if not STREAMLIT_AVAILABLE:
-        print("[AVISO] Streamlit no está instalado en este entorno.")
-        print("        Ejecuta: pip install -r requirements.txt && streamlit run src/app.py")
+        print("[AVISO] Streamlit no está instalado. Ejecuta: streamlit run src/app.py")
         return
 
     st.set_page_config(
-        page_title="Scoring Crediticio Microfinanzas | XGBoost + SHAP",
-        page_icon="🏦",
+        page_title="Scoring crediticio para microfinanzas",
         layout="wide",
         initial_sidebar_state="expanded"
     )
 
-    # Cargar artefactos
+    # Cargar artefactos del modelo
     preprocessor, model, explainer, benchmark_data, df_test = load_system_artifacts()
     sample_profiles = create_sample_profiles()
 
-    # --------------------------------------------------------------------------
-    # SIDEBAR: Configuración y Presets
-    # --------------------------------------------------------------------------
-    st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Universidad_de_Lima_logo.svg/1200px-Universidad_de_Lima_logo.svg.png", width=180)
-    st.sidebar.markdown("### 🎓 Proyecto de Tesis")
-    st.sidebar.markdown("**Universidad de Lima** — Ing. de Sistemas")
-    st.sidebar.markdown("**Autor:** Joaquín Ignacio Bernales Demichelli")
-    st.sidebar.markdown("---")
-
-    st.sidebar.markdown("### ⚙️ Parámetros de Políticas de Crédito")
-    lgd_selected = st.sidebar.slider("Loss Given Default (LGD %)", min_value=30, max_value=70, value=50, step=5) / 100.0
-    st.sidebar.caption(f"LGD configurado: {lgd_selected*100:.0f}% (Estándar SBS microfinanzas: 45%-60%)")
+    # SIDEBAR: Presets y Parámetros Regulatorios
+    st.sidebar.markdown("### Cargar Perfil de Prueba")
+    selected_preset = st.sidebar.selectbox("Selecciona un perfil:", list(sample_profiles.keys()))
+    preset = sample_profiles[selected_preset]
 
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 👤 Cargar Perfil de Ejemplo")
-    selected_preset = st.sidebar.selectbox("Selecciona un caso de prueba:", list(sample_profiles.keys()))
-    preset_data = sample_profiles[selected_preset]
+    st.sidebar.markdown("### Marco Regulatorio")
+    st.sidebar.caption("Resolución SBS N.° 3780-2021 — Reglamento de Gestión del Riesgo de Crédito")
+    st.sidebar.caption("Severidad de Pérdida (LGD): 50% (Estándar normativo microfinanciero)")
+    st.sidebar.caption("Modelo: XGBoost Cost-Sensitive + TreeSHAP")
+    st.sidebar.caption("Base: Encuesta SBS/CAF 2022")
 
-    # --------------------------------------------------------------------------
     # HEADER PRINCIPAL
-    # --------------------------------------------------------------------------
-    st.title("🏦 Sistema de Evaluación Crediticia con XGBoost e IA Explicable (SHAP)")
-    st.markdown(
-        """
-        **Modelo de Evaluación de Riesgo Crediticio para Microfinanzas e Inclusión Financiera**  
-        *Metodología CRISP-DM | Alineado a ODS 8 (Trabajo Decente) y ODS 10 (Reducción de Desigualdades)*
-        """
-    )
+    st.title("Scoring crediticio para microfinanzas")
     st.markdown("---")
 
-    # --------------------------------------------------------------------------
     # TABS DEL SISTEMA
-    # --------------------------------------------------------------------------
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📝 Originación Individual",
-        "🔄 Simulador What-If",
-        "📊 Explicabilidad Global XAI",
-        "📈 Benchmarking SBS",
-        "📚 Metodología y ODS"
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "Originación Individual",
+        "Explicabilidad Global XAI",
+        "Benchmarking SBS",
+        "Metodología SBS y ODS"
     ])
 
-    # ==========================================================================
     # TAB 1: ORIGINACIÓN INDIVIDUAL
-    # ==========================================================================
     with tab1:
-        st.subheader("📋 Datos de la Solicitud de Microcrédito")
-        st.markdown("Ingresa los datos socioeconómicos, financieros y alternativos del solicitante:")
+        st.subheader("Formulario de Solicitud de Microcrédito (Cuestionario SBS/CAF 2022)")
+        st.markdown("Ingresa los datos socioeconómicos, de inclusión digital y comportamiento financiero del solicitante:")
 
         col1, col2, col3 = st.columns(3)
 
+        # Columna 1: Eje 1 (Sociodemográfico y Ocupación)
         with col1:
-            st.markdown("##### 👤 Datos Socio-Demográficos")
-            edad = st.number_input("Edad (Años)", min_value=18, max_value=75, value=preset_data["edad"])
-            genero = st.selectbox("Género", ["F", "M"], index=0 if preset_data["genero"] == "F" else 1)
-            estado_civil = st.selectbox("Estado Civil", config.ESTADOS_CIVILES, index=config.ESTADOS_CIVILES.index(preset_data["estado_civil"]))
-            nivel_educacion = st.selectbox("Nivel de Educación", config.NIVELES_EDUCACION, index=config.NIVELES_EDUCACION.index(preset_data["nivel_educacion"]))
-            tipo_vivienda = st.selectbox("Tipo de Vivienda", config.TIPOS_VIVIENDA, index=config.TIPOS_VIVIENDA.index(preset_data["tipo_vivienda"]))
-            region_peru = st.selectbox("Región (Perú)", config.REGIONES_PERU, index=config.REGIONES_PERU.index(preset_data["region_peru"]))
+            st.markdown("##### Eje 1: Sociodemográfico y Ocupación")
+            edad = st.number_input("Edad (Años)", min_value=18, max_value=85, value=preset["edad"])
+            genero = st.selectbox("Género", ["Mujer", "Hombre"], index=0 if preset["genero"] == "Mujer" else 1)
+            nivel_educacion = st.selectbox("Nivel Educativo", config.OPCIONES_EDUCACION, index=config.OPCIONES_EDUCACION.index(preset["nivel_educacion"]))
+            departamento = st.selectbox("Departamento", config.OPCIONES_DEPARTAMENTO, index=config.OPCIONES_DEPARTAMENTO.index(preset["departamento"]))
+            ambito = st.selectbox("Ámbito Geográfico", ["Urbano", "Rural"], index=0 if preset["ambito"] == "Urbano" else 1)
+            
+            c_sub1, c_sub2 = st.columns(2)
+            with c_sub1:
+                carga_familiar_adultos = st.number_input("Adultos en hogar", min_value=1, max_value=10, value=preset["carga_familiar_adultos"])
+            with c_sub2:
+                carga_familiar_ninos = st.number_input("Hijos menores", min_value=0, max_value=10, value=preset["carga_familiar_ninos"])
+            
+            condicion_laboral = st.selectbox("Ocupación / Condición", config.OPCIONES_CONDICION_LABORAL, index=config.OPCIONES_CONDICION_LABORAL.index(preset["condicion_laboral"]))
+            es_informal = st.selectbox("Condición Tributaria / Formalidad", ["Informal / Sin RUC", "Formalizado / Con RUC o Beneficios"], index=0 if preset["es_informal"] == "Informal / Sin RUC" else 1)
 
+        # Columna 2: Eje 2 (Inclusión Digital y Datos Alternativos - Core Tesis)
         with col2:
-            st.markdown("##### 🏢 Negocio y Finanzas (PEN S/)")
-            rubro_negocio = st.selectbox("Rubro del Negocio", config.RUBROS_NEGOCIO, index=config.RUBROS_NEGOCIO.index(preset_data["rubro_negocio"]))
-            antiguedad_negocio_meses = st.number_input("Antigüedad del Negocio (Meses)", min_value=1, max_value=300, value=preset_data["antiguedad_negocio_meses"])
-            es_informal = st.radio("Condición Tributaria", [0, 1], format_func=lambda x: "Formal (RUC 20 / RUC 10 Formal)" if x == 0 else "Informal / Thin-File (Sin RUC / No Bancarizado)", index=preset_data["es_informal"])
-            ingreso_mensual_neto = st.number_input("Ingreso Mensual Neto (S/)", min_value=800.0, max_value=60000.0, value=float(preset_data["ingreso_mensual_neto"]), step=200.0)
-            gasto_mensual_operativo = st.number_input("Gasto Operativo Mensual (S/)", min_value=300.0, max_value=40000.0, value=float(preset_data["gasto_mensual_operativo"]), step=100.0)
-            posee_garantia_o_aval = st.radio("¿Cuenta con Garantía o Aval?", [0, 1], format_func=lambda x: "No" if x == 0 else "Sí (Prendaria / Aval Solidario)", index=preset_data["posee_garantia_o_aval"])
+            st.markdown("##### Eje 2: Inclusión Digital y Datos Alternativos")
+            adopcion_yape_plin = st.selectbox("¿Usa Billeteras Móviles (Yape/Plin/BIM)?", ["Sí", "No"], index=0 if preset["adopcion_yape_plin"] == "Sí" else 1)
+            tiene_billetera_activa = st.selectbox("¿Tiene Billetera Digital Activa actualmente?", ["Sí", "No"], index=0 if preset["tiene_billetera_activa"] == "Sí" else 1)
+            frecuencia_yape_plin = st.select_slider(
+                "Frecuencia de Uso de Billeteras Digitales",
+                options=[1, 2, 3, 4],
+                value=preset["frecuencia_yape_plin"],
+                format_func=lambda x: {1: "1. Nunca", 2: "2. Poco", 3: "3. Casi siempre", 4: "4. Siempre"}[x]
+            )
+            pago_celular_frecuencia = st.slider("Frecuencia de pagos/cobros con celular (1 a 5)", 1, 5, preset["pago_celular_frecuencia"])
+            uso_whatsapp = st.slider("Uso de mensajería instantánea (WhatsApp) (1 a 4)", 1, 4, preset["uso_whatsapp"])
+            uso_internet = st.slider("Uso de Internet en su vida diaria (1 a 4)", 1, 4, preset["uso_internet"])
+            preferencia_efectivo = st.slider("Aversión a lo digital: 'Prefiero efectivo a tarjetas/apps' (1 a 5)", 1, 5, preset["preferencia_efectivo"])
+            confianza_herramientas_digitales = st.slider("Confianza: 'Herramientas digitales facilitan mis finanzas' (1 a 5)", 1, 5, preset["confianza_herramientas_digitales"])
+            
+            st.markdown("###### Puntualidad en Cuentas y Recibos Básicos")
+            p_sub1, p_sub2 = st.columns(2)
+            with p_sub1:
+                guarda_dinero_recibos = st.selectbox("¿Reserva dinero para facturas?", ["Sí", "No"], index=0 if preset["guarda_dinero_recibos"] == "Sí" else 1)
+            with p_sub2:
+                anota_recibos_vencer = st.selectbox("¿Anota fechas de vencimiento?", ["Sí", "No"], index=0 if preset["anota_recibos_vencer"] == "Sí" else 1)
+            
+            puntualidad_pago_deudas = st.slider("Puntualidad declarada en cuentas y deudas (1: Nunca a 5: Siempre)", 1, 5, preset["puntualidad_pago_deudas"])
 
+        # Columna 3: Eje 3 (Capacidad, Resiliencia y Crédito Previo)
         with col3:
-            st.markdown("##### 📱 Datos Alternativos e Inclusión (ODS 10)")
-            monto_solicitado = st.number_input("Monto del Préstamo (S/)", min_value=500.0, max_value=60000.0, value=float(preset_data["monto_solicitado"]), step=500.0)
-            plazo_meses = st.selectbox("Plazo Solicitado (Meses)", [6, 12, 18, 24, 36, 48], index=[6, 12, 18, 24, 36, 48].index(preset_data["plazo_meses"]))
-            tasa_interes_anual = st.slider("Tasa Efectiva Anual (TEA %)", min_value=20.0, max_value=70.0, value=float(preset_data["tasa_interes_anual"]*100.0), step=1.0) / 100.0
-            puntualidad_servicios_basicos = st.slider("Puntualidad Servicios Básicos Luz/Agua (%)", min_value=0.0, max_value=100.0, value=float(preset_data["puntualidad_servicios_basicos"]*100.0), step=5.0) / 100.0
-            volumen_transacciones_digitales = st.number_input("Volumen Yape/Plin Mensual (S/)", min_value=0.0, max_value=20000.0, value=float(preset_data["volumen_transacciones_digitales"]), step=100.0)
-            frecuencia_transacciones_yape_mes = st.number_input("N° Transacciones Mensuales Yape/Plin", min_value=0, max_value=300, value=preset_data["frecuencia_transacciones_yape_mes"])
-            antiguedad_celular_meses = st.number_input("Meses con la misma línea celular", min_value=1, max_value=120, value=preset_data["antiguedad_celular_meses"])
-            variabilidad_ingresos_cv = st.slider("Variabilidad de Ingresos (Estacionalidad %)", min_value=5.0, max_value=80.0, value=float(preset_data["variabilidad_ingresos_cv"]*100.0), step=5.0) / 100.0
-            num_consultas_centrales_ult_6m = st.number_input("Consultas Centrales SBS (Últimos 6 meses)", min_value=0, max_value=15, value=preset_data["num_consultas_centrales_ult_6m"])
+            st.markdown("##### Eje 3: Capacidad y Comportamiento Financiero")
+            rango_ingreso = st.selectbox("Nivel de Ingreso Mensual del Hogar", config.OPCIONES_RANGO_INGRESO, index=config.OPCIONES_RANGO_INGRESO.index(preset["rango_ingreso"]))
+            nivel_socioeconomico = st.selectbox("Nivel Socioeconómico (NSE)", config.OPCIONES_NSE, index=config.OPCIONES_NSE.index(preset["nivel_socioeconomico"]))
+            ingresos_estables = st.selectbox("¿Sus ingresos mensuales son regulares/estables?", ["Sí", "No"], index=0 if preset["ingresos_estables"] == "Sí" else 1)
+            
+            pl_sub1, pl_sub2 = st.columns(2)
+            with pl_sub1:
+                planifica_presupuesto = st.selectbox("¿Elabora presupuesto?", ["Sí", "No"], index=0 if preset["planifica_presupuesto"] == "Sí" else 1)
+            with pl_sub2:
+                anota_gastos = st.selectbox("¿Registra gastos?", ["Sí", "No"], index=0 if preset["anota_gastos"] == "Sí" else 1)
+            
+            capacidad_afrontar_imprevisto = st.selectbox("¿Puede afrontar un gasto imprevisto hoy sin endeudarse?", ["Sí", "No"], index=0 if preset["capacidad_afrontar_imprevisto"] == "Sí" else 1)
+            dificultad_emergencia_1000 = st.select_slider(
+                "Dificultad de reunir S/ 1,000 en emergencia",
+                options=[1, 2, 3, 4],
+                value=preset["dificultad_emergencia_1000"],
+                format_func=lambda x: {1: "1. Nada difícil", 2: "2. Algo difícil", 3: "3. Muy difícil", 4: "4. No podría"}[x]
+            )
+            meses_resiliencia_desempleo = st.select_slider(
+                "Meses de cobertura si pierde fuente de ingresos",
+                options=[1, 2, 3, 4, 5],
+                value=preset["meses_resiliencia_desempleo"],
+                format_func=lambda x: {1: "< 1 semana", 2: "1 mes", 3: "3 meses", 4: "6 meses", 5: "> 6 meses"}[x]
+            )
+            sobra_dinero_fin_mes = st.slider("Le queda dinero de sobra a fin de mes (1 a 5)", 1, 5, preset["sobra_dinero_fin_mes"])
+            ingreso_apenas_alcanza = st.slider("Vulnerabilidad: 'El ingreso apenas alcanza' (1 a 5)", 1, 5, preset["ingreso_apenas_alcanza"])
+            percepcion_sobreendeudado = st.slider("Sobreendeudamiento: 'Tengo demasiadas deudas' (1 a 5)", 1, 5, preset["percepcion_sobreendeudado"])
+            
+            st.markdown("###### Historial Crediticio Formal vs. Informal")
+            h_sub1, h_sub2 = st.columns(2)
+            with h_sub1:
+                tiene_cuenta_ahorro = st.selectbox("Cuenta Ahorros", ["Sí", "No"], index=0 if preset["tiene_cuenta_ahorro"] == "Sí" else 1)
+                tiene_tarjeta_credito = st.selectbox("Tarjeta Crédito", ["Sí", "No"], index=0 if preset["tiene_tarjeta_credito"] == "Sí" else 1)
+                tiene_prestamo_personal = st.selectbox("Préstamo Personal", ["Sí", "No"], index=0 if preset["tiene_prestamo_personal"] == "Sí" else 1)
+            with h_sub2:
+                ha_usado_prestamista = st.selectbox("Prestamista Informal", ["Sí", "No"], index=0 if preset["ha_usado_prestamista"] == "Sí" else 1)
+                ha_usado_pandero_junta = st.selectbox("Juntas / Panderos", ["Sí", "No"], index=0 if preset["ha_usado_pandero_junta"] == "Sí" else 1)
+                credito_formal_negado = st.selectbox("Crédito Negado Previo", ["Sí", "No"], index=0 if preset["credito_formal_negado"] == "Sí" else 1)
 
-        # Construir diccionario del solicitante
+            monto_solicitado = st.number_input("Monto Solicitado (S/)", min_value=500.0, max_value=50000.0, value=float(preset["monto_solicitado"]), step=500.0)
+
+        # Consolidar diccionario de entrada
         applicant_dict = {
             "edad": edad,
+            "carga_familiar_adultos": carga_familiar_adultos,
+            "carga_familiar_ninos": carga_familiar_ninos,
             "genero": genero,
-            "estado_civil": estado_civil,
             "nivel_educacion": nivel_educacion,
-            "tipo_vivienda": tipo_vivienda,
-            "region_peru": region_peru,
-            "rubro_negocio": rubro_negocio,
-            "antiguedad_negocio_meses": antiguedad_negocio_meses,
+            "departamento": departamento,
+            "ambito": ambito,
+            "condicion_laboral": condicion_laboral,
             "es_informal": es_informal,
-            "ingreso_mensual_neto": ingreso_mensual_neto,
-            "gasto_mensual_operativo": gasto_mensual_operativo,
-            "monto_solicitado": monto_solicitado,
-            "plazo_meses": plazo_meses,
-            "tasa_interes_anual": tasa_interes_anual,
-            "num_consultas_centrales_ult_6m": num_consultas_centrales_ult_6m,
-            "posee_garantia_o_aval": posee_garantia_o_aval,
-            "puntualidad_servicios_basicos": puntualidad_servicios_basicos,
-            "volumen_transacciones_digitales": volumen_transacciones_digitales,
-            "frecuencia_transacciones_yape_mes": frecuencia_transacciones_yape_mes,
-            "antiguedad_celular_meses": antiguedad_celular_meses,
-            "variabilidad_ingresos_cv": variabilidad_ingresos_cv
+            "adopcion_yape_plin": adopcion_yape_plin,
+            "tiene_billetera_activa": tiene_billetera_activa,
+            "frecuencia_yape_plin": frecuencia_yape_plin,
+            "pago_celular_frecuencia": pago_celular_frecuencia,
+            "uso_whatsapp": uso_whatsapp,
+            "uso_internet": uso_internet,
+            "preferencia_efectivo": preferencia_efectivo,
+            "confianza_herramientas_digitales": confianza_herramientas_digitales,
+            "guarda_dinero_recibos": guarda_dinero_recibos,
+            "anota_recibos_vencer": anota_recibos_vencer,
+            "puntualidad_pago_deudas": puntualidad_pago_deudas,
+            "rango_ingreso": rango_ingreso,
+            "nivel_socioeconomico": nivel_socioeconomico,
+            "ingresos_estables": ingresos_estables,
+            "planifica_presupuesto": planifica_presupuesto,
+            "anota_gastos": anota_gastos,
+            "capacidad_afrontar_imprevisto": capacidad_afrontar_imprevisto,
+            "dificultad_emergencia_1000": dificultad_emergencia_1000,
+            "meses_resiliencia_desempleo": meses_resiliencia_desempleo,
+            "sobra_dinero_fin_mes": sobra_dinero_fin_mes,
+            "ingreso_apenas_alcanza": ingreso_apenas_alcanza,
+            "percepcion_sobreendeudado": percepcion_sobreendeudado,
+            "tiene_cuenta_ahorro": tiene_cuenta_ahorro,
+            "tiene_tarjeta_credito": tiene_tarjeta_credito,
+            "tiene_prestamo_personal": tiene_prestamo_personal,
+            "ha_usado_prestamista": ha_usado_prestamista,
+            "ha_usado_pandero_junta": ha_usado_pandero_junta,
+            "credito_formal_negado": credito_formal_negado,
+            "monto_solicitado": monto_solicitado
         }
 
         st.markdown("---")
-        if st.button("⚡ Evaluar Solicitud con XGBoost + TreeSHAP", type="primary", use_container_width=True):
+        if st.button("Evaluar Solicitud con XGBoost + TreeSHAP", type="primary", use_container_width=True):
             eval_result = explainer.explain_single_applicant(applicant_dict)
             
-            st.markdown("### 📊 Resultado de la Evaluación Crediticia")
+            st.markdown("### Resultado de la Evaluación Crediticia")
             
             # Tarjetas de KPI Principales
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
@@ -266,8 +420,8 @@ def run_streamlit_app():
             with kpi2:
                 st.metric("Probabilidad de Mora (PD)", f"{eval_result['pd_pct']}%")
             with kpi3:
-                el_custom = calculate_expected_loss(eval_result['pd_value'], monto_solicitado, lgd_selected)
-                st.metric("Pérdida Esperada (EL)", f"S/ {el_custom:,.2f}")
+                el_custom = calculate_expected_loss(eval_result['pd_value'], monto_solicitado, config.DEFAULT_LGD)
+                st.metric("Pérdida Esperada (EL)", f"S/ {el_custom:,.2f}", help="Calculado con LGD normativo SBS del 50%")
             with kpi4:
                 st.markdown(f"**Dictamen del Modelo:**")
                 st.markdown(
@@ -276,162 +430,95 @@ def run_streamlit_app():
                     unsafe_allow_html=True
                 )
 
-            st.caption(f"ℹ️ {eval_result['politica_descripcion']}")
+            st.caption(f"{eval_result['politica_descripcion']}")
             st.markdown("---")
 
-            # Ratios y Explicabilidad
-            r_col1, r_col2 = st.columns([1, 2])
-            
-            with r_col1:
-                st.markdown("##### 📌 Ratios Financieros Clave")
+            # Panel de Explicabilidad y Dictamen Regulatorio
+            res_col1, res_col2 = st.columns([1, 1])
+
+            with res_col1:
+                st.markdown("##### Índices Derivados de Comportamiento")
                 for r_name, r_val in eval_result["ratios_clave"].items():
                     st.write(f"- **{r_name}:** `{r_val}`")
 
-                st.markdown("##### 📝 Dictamen para el Comité de Créditos")
+                st.markdown("##### Razones de Acción Adversa (Res. SBS N.° 3780-2021)")
+                st.caption("Factores prioritarios que incrementaron el riesgo en la decisión algorítmica:")
+                for i, r_text in enumerate(eval_result["razones_accion_adversa_sbs"], 1):
+                    st.markdown(f"**{i}.** {r_text}")
+
+                st.markdown("##### Dictamen para el Comité de Créditos")
                 narr = eval_result["narrativa_comite"]
                 st.write(f"**Resumen:** {narr['resumen_ejecutivo']}")
                 
                 st.markdown("**Fortalezas Detectadas:**")
                 for f in narr["puntos_fuertes"]:
-                    st.markdown(f"- ✅ {f}")
+                    st.markdown(f"- {f}")
                 
-                st.markdown("**Factores de Alerta / Riesgo:**")
+                st.markdown("**Factores de Riesgo:**")
                 for a in narr["alertas_riesgo"]:
-                    st.markdown(f"- ⚠️ {a}")
+                    st.markdown(f"- {a}")
 
-                st.markdown("**Recomendaciones del Analista:**")
+                st.markdown("**Recomendaciones:**")
                 for rec in narr["recomendaciones_analista"]:
-                    st.markdown(f"- 💡 {rec}")
+                    st.markdown(f"- {rec}")
 
-            with r_col2:
-                st.markdown("##### 🔍 Explicabilidad Local SHAP (Contribución Marginal de Variables)")
-                st.markdown("Valores **verdes** disminuyen el riesgo de impago (favorecen la aprobación). Valores **rojos** aumentan el riesgo.")
+            with res_col2:
+                st.markdown("##### Explicabilidad Local TreeSHAP (Waterfall Plot)")
+                st.caption(f"Valor Base E[f(x)] = {eval_result['expected_value']:.4f} log-odds | En tiempo real (< 0.5 s)")
+                
+                # Renderizar Waterfall Plot
+                fig_waterfall = explainer.generate_waterfall_plot_figure(applicant_dict, max_display=9)
+                st.pyplot(fig_waterfall, use_container_width=True)
 
-                df_shap_plot = pd.DataFrame(eval_result["shap_features"])
-                df_shap_plot = df_shap_plot.sort_values("shap_value", ascending=True)
-
-                # Mostrar tabla con formato de contribución
-                for _, row in df_shap_plot.iterrows():
-                    val = row["shap_value"]
-                    color = "#28a745" if val < 0 else "#dc3545"
-                    sign = "Protector (-)" if val < 0 else "Alerta (+)"
-                    st.markdown(
-                        f"**{row['feature_name']}**: `<span style='color:{color}; font-weight:bold;'>{val:+.4f}</span>` *({sign})*",
-                        unsafe_allow_html=True
-                    )
-
-    # ==========================================================================
-    # TAB 2: SIMULADOR WHAT-IF (CONTRA-FÁCTICOS)
-    # ==========================================================================
+    # TAB 2: EXPLICABILIDAD GLOBAL XAI
     with tab2:
-        st.subheader("🔄 Simulador de Sensibilidad Crediticia (What-If Analysis)")
-        st.markdown("Modifica condiciones del préstamo o características del negocio para evaluar el cambio instantáneo en el Score y Decisión:")
+        st.subheader("Explicabilidad Global del Portafolio (TreeSHAP Beeswarm)")
+        st.markdown("Ranking de las variables con mayor contribución promedio sobre la base empírica SBS/CAF 2022:")
 
-        base_applicant = dict(preset_data)
-
-        w_col1, w_col2 = st.columns(2)
-        with w_col1:
-            st.markdown("##### 📄 Solicitud Original (Línea Base)")
-            orig_monto = st.number_input("Monto Original (S/)", value=float(base_applicant["monto_solicitado"]), key="orig_m")
-            orig_plazo = st.selectbox("Plazo Original (Meses)", [6, 12, 18, 24, 36, 48], index=[6, 12, 18, 24, 36, 48].index(base_applicant["plazo_meses"]), key="orig_p")
-            orig_aval = st.selectbox("Garantía/Aval Original", [0, 1], format_func=lambda x: "No" if x == 0 else "Sí", index=base_applicant["posee_garantia_o_aval"], key="orig_a")
-
-        with w_col2:
-            st.markdown("##### 🛠️ Solicitud Modificada (Escenario Simulado)")
-            sim_monto = st.number_input("Monto Simulado (S/)", value=max(1000.0, float(base_applicant["monto_solicitado"]) * 0.75), step=500.0, key="sim_m")
-            sim_plazo = st.selectbox("Plazo Simulado (Meses)", [6, 12, 18, 24, 36, 48], index=min(len([6, 12, 18, 24, 36, 48])-1, [6, 12, 18, 24, 36, 48].index(base_applicant["plazo_meses"]) + 1), key="sim_p")
-            sim_aval = st.selectbox("Garantía/Aval Simulado", [0, 1], format_func=lambda x: "No" if x == 0 else "Sí (Con Aval)", index=1, key="sim_a")
-
-        if st.button("🚀 Simular Impacto del Escenario What-If", type="secondary", use_container_width=True):
-            orig_app = dict(base_applicant)
-            orig_app["monto_solicitado"] = orig_monto
-            orig_app["plazo_meses"] = orig_plazo
-            orig_app["posee_garantia_o_aval"] = orig_aval
-
-            mod_app = dict(base_applicant)
-            mod_app["monto_solicitado"] = sim_monto
-            mod_app["plazo_meses"] = sim_plazo
-            mod_app["posee_garantia_o_aval"] = sim_aval
-
-            comparison = explainer.simulate_what_if(orig_app, mod_app)
-
-            st.markdown("#### ⚖️ Comparativa de Resultados")
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                st.metric("Score Crediticio", f"{comparison['modificado']['score_crediticio']} pts", delta=f"{comparison['delta_score']} pts")
-            with c2:
-                st.metric("Probabilidad de Mora", f"{comparison['modificado']['pd_pct']}%", delta=f"{comparison['delta_pd_pct']}%", delta_color="inverse")
-            with c3:
-                st.metric("Pérdida Esperada (EL)", f"S/ {comparison['modificado']['perdida_esperada']:,.2f}", delta=f"S/ {comparison['delta_perdida_esperada']:,.2f}", delta_color="inverse")
-            with c4:
-                st.markdown(f"**Cambio de Dictamen:**")
-                st.write(f"`{comparison['decision_anterior']}` ➡️ **`{comparison['decision_nueva']}`**")
-
-    # ==========================================================================
-    # TAB 3: EXPLICABILIDAD GLOBAL XAI Y AUDITORÍA
-    # ==========================================================================
-    with tab3:
-        st.subheader("📊 Explicabilidad Global del Portafolio (TreeSHAP)")
-        st.markdown("Ranking de las variables con mayor poder explicativo promedio sobre el conjunto de prueba (1,500 solicitudes):")
+        beeswarm_img_path = config.MODELS_DIR / "shap_beeswarm.png"
+        if beeswarm_img_path.exists():
+            st.image(str(beeswarm_img_path), caption="SHAP Summary Plot (Beeswarm) - Base Oficial SBS/CAF 2022", use_container_width=True)
 
         if df_test is not None:
+            st.markdown("##### Tabla de Importancia Relativa Global")
             df_global_imp = explainer.get_global_feature_importance(df_test, top_n=12)
-            
-            g_col1, g_col2 = st.columns([2, 1])
-            with g_col1:
-                st.dataframe(
-                    df_global_imp[["feature_name", "mean_abs_shap", "importance_pct"]].rename(
-                        columns={"feature_name": "Variable", "mean_abs_shap": "Impacto Medio |SHAP|", "importance_pct": "Importancia Relativa (%)"}
-                    ),
-                    use_container_width=True
-                )
-            with g_col2:
-                st.markdown("##### 🏛️ Auditoría de Equidad (ODS 10)")
-                st.markdown(
-                    """
-                    - **Inclusión Thin-File:** Las variables alternativas (Puntualidad Luz/Agua, Yape/Plin) representan más del **28% del peso explicativo total**, permitiendo evaluar a independientes sin historial formal.
-                    - **Transparencia Regulatoria:** Cumple con la exigencia de la SBS sobre auditabilidad y eliminación del sesgo de caja negra.
-                    """
-                )
+            st.dataframe(
+                df_global_imp[["feature_name", "mean_abs_shap", "importance_pct"]].rename(
+                    columns={"feature_name": "Variable", "mean_abs_shap": "Impacto Medio |SHAP|", "importance_pct": "Importancia Relativa (%)"}
+                ),
+                use_container_width=True
+            )
 
-    # ==========================================================================
-    # TAB 4: BENCHMARKING DE MODELOS Y VALIDACIÓN SBS
-    # ==========================================================================
-    with tab4:
-        st.subheader("📈 Benchmarking Comparativo de Modelos Predictivos")
-        st.markdown("Validación experimental sobre el conjunto de datos de prueba independiente (*Test Set*):")
+    # TAB 3: BENCHMARKING DE MODELOS SBS
+    with tab3:
+        st.subheader("Validación y Comparativa de Modelos")
+        st.markdown("Validación experimental sobre el conjunto de prueba independiente de la encuesta SBS/CAF 2022:")
 
         if benchmark_data and "resumen_comparativo" in benchmark_data:
             df_bench = pd.DataFrame(benchmark_data["resumen_comparativo"])
             st.dataframe(df_bench, use_container_width=True)
 
-            st.markdown("##### 🏆 Principales Hallazgos Experimentales:")
+            st.markdown("##### Cumplimiento de Estándares SBS:")
             st.markdown(
-                """
-                1. **Superación del Scorecard Lineal:** XGBoost supera a la Regresión Logística en capacidad de detección de clientes morosos (*Recall*), minimizando pérdidas por falsos negativos.
-                2. **Estadístico KS:** El modelo propuesto supera el umbral estándar regulatorio ($KS \ge 35\%$).
-                3. **Optimización Sensible al Costo:** La incorporación del parámetro `scale_pos_weight` equilibra la función de pérdida ante el desbalance natural de morosidad (12.8%).
+                r"""
+                - **Estadístico Kolmogorov-Smirnov (KS):** El modelo XGBoost alcanza un **KS > 33%**, superando el piso mínimo regulatorio para microfinanzas ($KS \ge 30\%$).
+                - **Capacidad de Discriminación (AUC-ROC):** Logra un **AUC de 0.7134**, superior al scorecard lineal tradicional en datos alternativos.
+                - **Ponderación Sensible al Costo (`scale_pos_weight = 2.99`):** Compensa el desbalance real de morosidad empírica de la SBS (25.06%), evitando el sesgo pro-solvente.
                 """
             )
 
-    # ==========================================================================
-    # TAB 5: MARCO TEÓRICO, METODOLOGÍA CRISP-DM Y FUENTES
-    # ==========================================================================
-    with tab5:
-        st.subheader("📚 Marco Metodológico y Fuentes Científicas de la Tesis")
+    # TAB 4: MARCO TEÓRICO, SBS Y ODS
+    with tab4:
+        st.subheader("Marco Normativo SBS y Contribución a los ODS")
         st.markdown(
             """
-            ### 🎯 Alineamiento con los Objetivos de Desarrollo Sostenible (ODS)
-            - **ODS 8 (Trabajo Decente y Crecimiento Económico):** Facilita la canalización de microcréditos a tasas justas para Mypes, fortaleciendo el empleo independiente.
-            - **ODS 10 (Reducción de las Desigualdades):** Democratiza el acceso al crédito para segmentos excluidos (*thin-file*) evaluando hábitos de pago de servicios y billeteras digitales.
-            
-            ### 🔄 Metodología CRISP-DM Aplicada
-            1. **Comprensión del Negocio:** Definición de objetivos microfinancieros, políticas de crédito y función de Pérdida Esperada ($EL = PD \times EAD \times LGD$).
-            2. **Comprensión de los Datos:** Exploración del dataset microfinanciero peruano y tasa de mora latente (12.8%).
-            3. **Preparación de Datos:** Ingeniería de ratios financieros (DTI, DSCR), imputación estratégica y partición estratificada 70/15/15.
-            4. **Modelado:** Entrenamiento de XGBoost Cost-Sensitive frente a Regresión Logística y Random Forest.
-            5. **Evaluación:** Validación bajo métricas AUC-ROC, PR-AUC, F1, KS y explicabilidad con TreeSHAP.
-            6. **Despliegue:** Prototipo web interactivo en Streamlit con simulador What-If.
+            ### Resolución SBS N.° 3780-2021
+            - **Uso de Datos Alternativos:** Permite el uso de fuentes de información no tradicionales (billeteras digitales, pagos de servicios) para evaluar clientes sin historial en centrales de riesgo.
+            - **Auditabilidad y Deber de Notificación:** Exige que los modelos internos de riesgo provean explicaciones claras sobre los motivos de denegación o reducción de línea a los usuarios (Razones de Acción Adversa).
+
+            ### Alineamiento con los Objetivos de Desarrollo Sostenible (ODS)
+            - **ODS 8 (Trabajo Decente y Crecimiento Económico):** Facilita el acceso al crédito productivo para microempresarios informales y trabajadores por cuenta propia.
+            - **ODS 10 (Reducción de las Desigualdades):** Rompe la barrera del "thin-file" permitiendo a personas no bancarizadas ser evaluadas a través de su comportamiento en Yape, Plin y pagos de recibos.
             """
         )
 

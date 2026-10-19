@@ -41,3 +41,18 @@ Thumbs.db
 
 # Documentation
 docs/
+
+# Data & Large datasets
+*.dta
+BD_Encuesta_Capacidades_Financieras_2022.dta
+data/raw/*.csv
+data/raw/*.dta
+data/processed/*.csv
+data/processed/*.parquet
+data/interim/
+*.parquet
+
+# Scratch & Temporary analysis files
+scratch_*
+*.txt
+matched_variables.json

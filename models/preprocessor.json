@@ -1,267 +1,388 @@
 {
   "numerical_features": [
     "edad",
-    "antiguedad_negocio_meses",
-    "ingreso_mensual_neto",
-    "gasto_mensual_operativo",
-    "monto_solicitado",
-    "plazo_meses",
-    "tasa_interes_anual",
-    "num_consultas_centrales_ult_6m",
-    "puntualidad_servicios_basicos",
-    "volumen_transacciones_digitales",
-    "frecuencia_transacciones_yape_mes",
-    "antiguedad_celular_meses",
-    "variabilidad_ingresos_cv",
-    "cuota_mensual",
-    "flujo_caja_libre_mensual",
-    "ratio_cuota_ingreso",
-    "ratio_cobertura_deuda",
-    "ratio_monto_ingreso",
-    "indice_estabilidad_negocio",
-    "score_comportamiento_alternativo"
+    "carga_familiar_adultos",
+    "carga_familiar_ninos",
+    "frecuencia_yape_plin",
+    "pago_celular_frecuencia",
+    "uso_whatsapp",
+    "uso_internet",
+    "preferencia_efectivo",
+    "confianza_herramientas_digitales",
+    "puntualidad_pago_deudas",
+    "dificultad_emergencia_1000",
+    "meses_resiliencia_desempleo",
+    "sobra_dinero_fin_mes",
+    "ingreso_apenas_alcanza",
+    "percepcion_sobreendeudado",
+    "indice_inclusion_digital",
+    "indice_resiliencia_financiera",
+    "indice_vulnerabilidad_liquidez",
+    "indice_cultura_pago"
   ],
   "categorical_features": [
     "genero",
-    "estado_civil",
     "nivel_educacion",
-    "tipo_vivienda",
-    "region_peru",
-    "rubro_negocio",
+    "departamento",
+    "ambito",
+    "condicion_laboral",
     "es_informal",
-    "posee_garantia_o_aval"
+    "adopcion_yape_plin",
+    "tiene_billetera_activa",
+    "guarda_dinero_recibos",
+    "anota_recibos_vencer",
+    "rango_ingreso",
+    "nivel_socioeconomico",
+    "ingresos_estables",
+    "planifica_presupuesto",
+    "anota_gastos",
+    "capacidad_afrontar_imprevisto",
+    "tiene_cuenta_ahorro",
+    "tiene_tarjeta_credito",
+    "tiene_prestamo_personal",
+    "ha_usado_prestamista",
+    "ha_usado_pandero_junta",
+    "credito_formal_negado"
   ],
   "num_medians_": {
-    "edad": 43.0,
-    "antiguedad_negocio_meses": 35.0,
-    "ingreso_mensual_neto": 2450.0,
-    "gasto_mensual_operativo": 1440.0,
-    "monto_solicitado": 5800.0,
-    "plazo_meses": 18.0,
-    "tasa_interes_anual": 0.416,
-    "num_consultas_centrales_ult_6m": 1.0,
-    "puntualidad_servicios_basicos": 0.72,
-    "volumen_transacciones_digitales": 2070.0,
-    "frecuencia_transacciones_yape_mes": 35.0,
-    "antiguedad_celular_meses": 32.0,
-    "variabilidad_ingresos_cv": 0.319,
-    "cuota_mensual": 464.81,
-    "flujo_caja_libre_mensual": 950.0,
-    "ratio_cuota_ingreso": 0.191,
-    "ratio_cobertura_deuda": 2.0597,
-    "ratio_monto_ingreso": 2.4889,
-    "indice_estabilidad_negocio": 2.1469,
-    "score_comportamiento_alternativo": 0.751
+    "edad": 39.0,
+    "carga_familiar_adultos": 3.0,
+    "carga_familiar_ninos": 1.0,
+    "frecuencia_yape_plin": 1.0,
+    "pago_celular_frecuencia": 2.0,
+    "uso_whatsapp": 4.0,
+    "uso_internet": 4.0,
+    "preferencia_efectivo": 3.0,
+    "confianza_herramientas_digitales": 3.0,
+    "puntualidad_pago_deudas": 5.0,
+    "dificultad_emergencia_1000": 3.0,
+    "meses_resiliencia_desempleo": 3.0,
+    "sobra_dinero_fin_mes": 2.0,
+    "ingreso_apenas_alcanza": 3.0,
+    "percepcion_sobreendeudado": 1.0,
+    "indice_inclusion_digital": 0.4333,
+    "indice_resiliencia_financiera": 0.3583,
+    "indice_vulnerabilidad_liquidez": 0.35624999999999996,
+    "indice_cultura_pago": 0.75
   },
   "num_iqr_": {
     "edad": [
-      43.0,
-      23.0
+      39.0,
+      22.0
     ],
-    "antiguedad_negocio_meses": [
-      35.0,
-      27.0
+    "carga_familiar_adultos": [
+      3.0,
+      2.0
     ],
-    "ingreso_mensual_neto": [
-      2450.0,
-      1870.0
-    ],
-    "gasto_mensual_operativo": [
-      1440.0,
-      1140.0
-    ],
-    "monto_solicitado": [
-      5800.0,
-      5100.0
-    ],
-    "plazo_meses": [
-      18.0,
-      12.0
-    ],
-    "tasa_interes_anual": [
-      0.416,
-      0.15099999999999997
-    ],
-    "num_consultas_centrales_ult_6m": [
+    "carga_familiar_ninos": [
       1.0,
       1.0
     ],
-    "puntualidad_servicios_basicos": [
-      0.72,
-      0.20999999999999996
+    "frecuencia_yape_plin": [
+      1.0,
+      2.0
     ],
-    "volumen_transacciones_digitales": [
-      2070.0,
-      1220.0
+    "pago_celular_frecuencia": [
+      2.0,
+      4.0
     ],
-    "frecuencia_transacciones_yape_mes": [
-      35.0,
-      8.0
+    "uso_whatsapp": [
+      4.0,
+      2.0
     ],
-    "antiguedad_celular_meses": [
-      32.0,
-      28.0
+    "uso_internet": [
+      4.0,
+      2.0
     ],
-    "variabilidad_ingresos_cv": [
-      0.319,
-      0.234
+    "preferencia_efectivo": [
+      3.0,
+      3.0
     ],
-    "cuota_mensual": [
-      464.81,
-      478.585
+    "confianza_herramientas_digitales": [
+      3.0,
+      3.0
     ],
-    "flujo_caja_libre_mensual": [
-      950.0,
-      810.0
+    "puntualidad_pago_deudas": [
+      5.0,
+      1.0
     ],
-    "ratio_cuota_ingreso": [
-      0.191,
-      0.13049999999999998
+    "dificultad_emergencia_1000": [
+      3.0,
+      2.0
     ],
-    "ratio_cobertura_deuda": [
-      2.0597,
-      1.5552
+    "meses_resiliencia_desempleo": [
+      3.0,
+      2.0
     ],
-    "ratio_monto_ingreso": [
-      2.4889,
-      1.28295
+    "sobra_dinero_fin_mes": [
+      2.0,
+      2.0
     ],
-    "indice_estabilidad_negocio": [
-      2.1469,
-      0.7415000000000003
+    "ingreso_apenas_alcanza": [
+      3.0,
+      3.0
     ],
-    "score_comportamiento_alternativo": [
-      0.751,
-      0.16189999999999993
+    "percepcion_sobreendeudado": [
+      1.0,
+      2.0
+    ],
+    "indice_inclusion_digital": [
+      0.4333,
+      0.5832999999999999
+    ],
+    "indice_resiliencia_financiera": [
+      0.3583,
+      0.4083
+    ],
+    "indice_vulnerabilidad_liquidez": [
+      0.35624999999999996,
+      0.26249999999999996
+    ],
+    "indice_cultura_pago": [
+      0.75,
+      0.5
     ]
   },
   "cat_modes_": {
-    "genero": "F",
-    "estado_civil": "Casado(a)",
+    "genero": "Hombre",
     "nivel_educacion": "Secundaria Completa",
-    "tipo_vivienda": "Propia",
-    "region_peru": "Lima/Callao",
-    "rubro_negocio": "Comercio Minorista / Bodega",
-    "es_informal": "1",
-    "posee_garantia_o_aval": "0"
+    "departamento": "Lima / Callao",
+    "ambito": "Urbano",
+    "condicion_laboral": "Trabajador Independiente / Cuenta propia",
+    "es_informal": "Informal / Sin RUC",
+    "adopcion_yape_plin": "No",
+    "tiene_billetera_activa": "No",
+    "guarda_dinero_recibos": "Sí",
+    "anota_recibos_vencer": "Sí",
+    "rango_ingreso": "De S/ 601 a S/ 1,200 (Ingreso Mínimo)",
+    "nivel_socioeconomico": "C",
+    "ingresos_estables": "Sí",
+    "planifica_presupuesto": "Sí",
+    "anota_gastos": "Sí",
+    "capacidad_afrontar_imprevisto": "No",
+    "tiene_cuenta_ahorro": "Sí",
+    "tiene_tarjeta_credito": "No",
+    "tiene_prestamo_personal": "No",
+    "ha_usado_prestamista": "No",
+    "ha_usado_pandero_junta": "No",
+    "credito_formal_negado": "No"
   },
   "cat_categories_": {
     "genero": [
-      "F",
-      "M"
-    ],
-    "estado_civil": [
-      "Casado(a)",
-      "Conviviente",
-      "Divorciado(a)",
-      "Soltero(a)",
-      "Viudo(a)"
+      "Hombre",
+      "Mujer"
     ],
     "nivel_educacion": [
-      "Postgrado",
-      "Primaria Completa",
+      "Primaria / Sin Instrucción",
       "Secundaria Completa",
-      "Técnico Superior",
-      "Universitario Completo",
-      "Universitario Incompleto"
+      "Superior Técnico Completo",
+      "Superior Universitario Completo"
     ],
-    "tipo_vivienda": [
-      "Alquilada",
-      "Familiar",
-      "Hipotecada",
-      "Propia"
-    ],
-    "region_peru": [
+    "departamento": [
+      "Amazonas",
+      "Apurímac",
       "Arequipa",
+      "Ayacucho",
+      "Cajamarca",
       "Cusco",
+      "Huancavelica",
+      "Huánuco",
       "Ica",
       "Junín",
       "La Libertad",
       "Lambayeque",
-      "Lima/Callao",
+      "Lima / Callao",
+      "Loreto",
+      "Madre de Dios",
+      "Moquegua",
+      "Pasco",
       "Piura",
       "Puno",
       "San Martín",
+      "Tacna",
+      "Tumbes",
+      "Ucayali",
       "Áncash"
     ],
-    "rubro_negocio": [
-      "Agropecuario / Comercialización Rural",
-      "Comercio Minorista / Bodega",
-      "Ferretería / Materiales de Construcción",
-      "Gastronomía / Restaurante",
-      "Manufactura / Confección Textil",
-      "Servicios Técnicos / Profesionales",
-      "Transporte / Mototaxi / Taxi"
+    "ambito": [
+      "Rural",
+      "Urbano"
+    ],
+    "condicion_laboral": [
+      "Campesino / Agricultor / Ganadero",
+      "Empleado Técnico o Profesional",
+      "Empleador o Patrono (con personal)",
+      "Obrero / Empleado Operativo",
+      "Trabajador Independiente / Cuenta propia"
     ],
     "es_informal": [
-      "0",
-      "1"
+      "Formalizado / Con RUC o Beneficios",
+      "Informal / Sin RUC"
     ],
-    "posee_garantia_o_aval": [
-      "0",
-      "1"
+    "adopcion_yape_plin": [
+      "No",
+      "Sí"
+    ],
+    "tiene_billetera_activa": [
+      "No",
+      "Sí"
+    ],
+    "guarda_dinero_recibos": [
+      "No",
+      "Sí"
+    ],
+    "anota_recibos_vencer": [
+      "No",
+      "Sí"
+    ],
+    "rango_ingreso": [
+      "De S/ 1,201 a S/ 2,400",
+      "De S/ 2,401 a S/ 4,000",
+      "De S/ 601 a S/ 1,200 (Ingreso Mínimo)",
+      "Menor a S/ 600"
+    ],
+    "nivel_socioeconomico": [
+      "A/B",
+      "C",
+      "D",
+      "E"
+    ],
+    "ingresos_estables": [
+      "No",
+      "Sí"
+    ],
+    "planifica_presupuesto": [
+      "No",
+      "Sí"
+    ],
+    "anota_gastos": [
+      "No",
+      "Sí"
+    ],
+    "capacidad_afrontar_imprevisto": [
+      "No",
+      "Sí"
+    ],
+    "tiene_cuenta_ahorro": [
+      "No",
+      "Sí"
+    ],
+    "tiene_tarjeta_credito": [
+      "No",
+      "Sí"
+    ],
+    "tiene_prestamo_personal": [
+      "No",
+      "Sí"
+    ],
+    "ha_usado_prestamista": [
+      "No",
+      "Sí"
+    ],
+    "ha_usado_pandero_junta": [
+      "No",
+      "Sí"
+    ],
+    "credito_formal_negado": [
+      "No",
+      "Sí"
     ]
   },
   "feature_names_out_": [
     "edad",
-    "antiguedad_negocio_meses",
-    "ingreso_mensual_neto",
-    "gasto_mensual_operativo",
-    "monto_solicitado",
-    "plazo_meses",
-    "tasa_interes_anual",
-    "num_consultas_centrales_ult_6m",
-    "puntualidad_servicios_basicos",
-    "volumen_transacciones_digitales",
-    "frecuencia_transacciones_yape_mes",
-    "antiguedad_celular_meses",
-    "variabilidad_ingresos_cv",
-    "cuota_mensual",
-    "flujo_caja_libre_mensual",
-    "ratio_cuota_ingreso",
-    "ratio_cobertura_deuda",
-    "ratio_monto_ingreso",
-    "indice_estabilidad_negocio",
-    "score_comportamiento_alternativo",
-    "genero_F",
-    "genero_M",
-    "estado_civil_Casado(a)",
-    "estado_civil_Conviviente",
-    "estado_civil_Divorciado(a)",
-    "estado_civil_Soltero(a)",
-    "estado_civil_Viudo(a)",
-    "nivel_educacion_Postgrado",
-    "nivel_educacion_Primaria Completa",
+    "carga_familiar_adultos",
+    "carga_familiar_ninos",
+    "frecuencia_yape_plin",
+    "pago_celular_frecuencia",
+    "uso_whatsapp",
+    "uso_internet",
+    "preferencia_efectivo",
+    "confianza_herramientas_digitales",
+    "puntualidad_pago_deudas",
+    "dificultad_emergencia_1000",
+    "meses_resiliencia_desempleo",
+    "sobra_dinero_fin_mes",
+    "ingreso_apenas_alcanza",
+    "percepcion_sobreendeudado",
+    "indice_inclusion_digital",
+    "indice_resiliencia_financiera",
+    "indice_vulnerabilidad_liquidez",
+    "indice_cultura_pago",
+    "genero_Hombre",
+    "genero_Mujer",
+    "nivel_educacion_Primaria / Sin Instrucción",
     "nivel_educacion_Secundaria Completa",
-    "nivel_educacion_Técnico Superior",
-    "nivel_educacion_Universitario Completo",
-    "nivel_educacion_Universitario Incompleto",
-    "tipo_vivienda_Alquilada",
-    "tipo_vivienda_Familiar",
-    "tipo_vivienda_Hipotecada",
-    "tipo_vivienda_Propia",
-    "region_peru_Arequipa",
-    "region_peru_Cusco",
-    "region_peru_Ica",
-    "region_peru_Junín",
-    "region_peru_La Libertad",
-    "region_peru_Lambayeque",
-    "region_peru_Lima/Callao",
-    "region_peru_Piura",
-    "region_peru_Puno",
-    "region_peru_San Martín",
-    "region_peru_Áncash",
-    "rubro_negocio_Agropecuario / Comercialización Rural",
-    "rubro_negocio_Comercio Minorista / Bodega",
-    "rubro_negocio_Ferretería / Materiales de Construcción",
-    "rubro_negocio_Gastronomía / Restaurante",
-    "rubro_negocio_Manufactura / Confección Textil",
-    "rubro_negocio_Servicios Técnicos / Profesionales",
-    "rubro_negocio_Transporte / Mototaxi / Taxi",
-    "es_informal_0",
-    "es_informal_1",
-    "posee_garantia_o_aval_0",
-    "posee_garantia_o_aval_1"
+    "nivel_educacion_Superior Técnico Completo",
+    "nivel_educacion_Superior Universitario Completo",
+    "departamento_Amazonas",
+    "departamento_Apurímac",
+    "departamento_Arequipa",
+    "departamento_Ayacucho",
+    "departamento_Cajamarca",
+    "departamento_Cusco",
+    "departamento_Huancavelica",
+    "departamento_Huánuco",
+    "departamento_Ica",
+    "departamento_Junín",
+    "departamento_La Libertad",
+    "departamento_Lambayeque",
+    "departamento_Lima / Callao",
+    "departamento_Loreto",
+    "departamento_Madre de Dios",
+    "departamento_Moquegua",
+    "departamento_Pasco",
+    "departamento_Piura",
+    "departamento_Puno",
+    "departamento_San Martín",
+    "departamento_Tacna",
+    "departamento_Tumbes",
+    "departamento_Ucayali",
+    "departamento_Áncash",
+    "ambito_Rural",
+    "ambito_Urbano",
+    "condicion_laboral_Campesino / Agricultor / Ganadero",
+    "condicion_laboral_Empleado Técnico o Profesional",
+    "condicion_laboral_Empleador o Patrono (con personal)",
+    "condicion_laboral_Obrero / Empleado Operativo",
+    "condicion_laboral_Trabajador Independiente / Cuenta propia",
+    "es_informal_Formalizado / Con RUC o Beneficios",
+    "es_informal_Informal / Sin RUC",
+    "adopcion_yape_plin_No",
+    "adopcion_yape_plin_Sí",
+    "tiene_billetera_activa_No",
+    "tiene_billetera_activa_Sí",
+    "guarda_dinero_recibos_No",
+    "guarda_dinero_recibos_Sí",
+    "anota_recibos_vencer_No",
+    "anota_recibos_vencer_Sí",
+    "rango_ingreso_De S/ 1,201 a S/ 2,400",
+    "rango_ingreso_De S/ 2,401 a S/ 4,000",
+    "rango_ingreso_De S/ 601 a S/ 1,200 (Ingreso Mínimo)",
+    "rango_ingreso_Menor a S/ 600",
+    "nivel_socioeconomico_A/B",
+    "nivel_socioeconomico_C",
+    "nivel_socioeconomico_D",
+    "nivel_socioeconomico_E",
+    "ingresos_estables_No",
+    "ingresos_estables_Sí",
+    "planifica_presupuesto_No",
+    "planifica_presupuesto_Sí",
+    "anota_gastos_No",
+    "anota_gastos_Sí",
+    "capacidad_afrontar_imprevisto_No",
+    "capacidad_afrontar_imprevisto_Sí",
+    "tiene_cuenta_ahorro_No",
+    "tiene_cuenta_ahorro_Sí",
+    "tiene_tarjeta_credito_No",
+    "tiene_tarjeta_credito_Sí",
+    "tiene_prestamo_personal_No",
+    "tiene_prestamo_personal_Sí",
+    "ha_usado_prestamista_No",
+    "ha_usado_prestamista_Sí",
+    "ha_usado_pandero_junta_No",
+    "ha_usado_pandero_junta_Sí",
+    "credito_formal_negado_No",
+    "credito_formal_negado_Sí"
   ],
   "is_fitted_": true
 }

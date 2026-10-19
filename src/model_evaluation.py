@@ -1,15 +1,7 @@
 """
-==============================================================================
-PROYECTO DE TESIS - UNIVERSIDAD DE LIMA
-Carrera: Ingeniería de Sistemas
-Título: Modelo de evaluación de riesgo crediticio para microfinanzas e
-        inclusión financiera mediante XGBoost e Inteligencia Artificial
-        Explicable (SHAP)
-Archivo: src/model_evaluation.py
 Descripción: Evaluación de modelos predictivos bajo métricas de Machine Learning
              y estándares regulatorios de la SBS (AUC-ROC, PR-AUC, F1, KS Statistic,
              Expected Loss EL = PD * EAD * LGD).
-==============================================================================
 """
 
 import numpy as np
@@ -95,7 +87,8 @@ def compute_kolmogorov_smirnov(y_true: np.ndarray, y_prob: np.ndarray) -> Tuple[
     Calcula el estadístico Kolmogorov-Smirnov (KS), métrica estándar de la SBS
     para medir la máxima separación entre las distribuciones acumuladas de buenos y malos pagadores.
 
-    Meta según literatura bancaria peruana: KS >= 40.0%
+    Se calcula sobre 10 deciles de riesgo (práctica estándar de validación bancaria).
+    Piso regulatorio adoptado en el proyecto: KS >= 30.0%
 
     Args:
         y_true: Etiquetas reales (0 o 1).
@@ -234,7 +227,7 @@ def get_credit_decision(pd_value: float) -> Tuple[str, str, str]:
     Returns:
         Tuple[str, str, str]: (Decision, ColorBadge, DescripcionPolitica)
     """
-    if pd_value < config.THRESHOLD_LOW_RISK:
+    if pd_value <= config.THRESHOLD_LOW_RISK:
         return "APROBADO", "#28a745", "Bajo Riesgo: Aprobación automática conforme a políticas de crédito."
     elif pd_value <= config.THRESHOLD_MEDIUM_RISK:
         return "REVISIÓN MANUAL", "#ffc107", "Riesgo Moderado: Requiere validación de aval o visita de campo por analista."

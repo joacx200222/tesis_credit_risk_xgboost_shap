@@ -1,20 +1,11 @@
 """
-==============================================================================
-PROYECTO DE TESIS - UNIVERSIDAD DE LIMA
-Carrera: Ingeniería de Sistemas
-Título: Modelo de evaluación de riesgo crediticio para microfinanzas e
-        inclusión financiera mediante XGBoost e Inteligencia Artificial
-        Explicable (SHAP)
-Archivo: src/config.py
-Descripción: Configuración centralizada, constantes de negocio y rutas del sistema.
-==============================================================================
+Descripción: Configuración centralizada, constantes de negocio y rutas del sistema
+             para la base empírica oficial SBS/CAF 2022.
 """
 
 from pathlib import Path
 
-# ------------------------------------------------------------------------------
-# 1. RUTAS DEL PROYECTO (CRISP-DM Structure)
-# ------------------------------------------------------------------------------
+# 1. Rutas del proyecto
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
@@ -22,153 +13,182 @@ PROCESSED_DATA_DIR = DATA_DIR / "processed"
 MODELS_DIR = BASE_DIR / "models"
 DOCS_DIR = BASE_DIR / "docs"
 
-# Archivos específicos
-RAW_DATASET_PATH = RAW_DATA_DIR / "dataset_microfinanzas_peru.csv"
+# Archivos específicos de datos
+RAW_DTA_PATH = BASE_DIR / "BD_Encuesta_Capacidades_Financieras_2022.dta"
+RAW_DATASET_CSV = RAW_DATA_DIR / "dataset_sbs_caf_2022.csv"
 PROCESSED_TRAIN_PATH = PROCESSED_DATA_DIR / "train.csv"
 PROCESSED_VAL_PATH = PROCESSED_DATA_DIR / "val.csv"
 PROCESSED_TEST_PATH = PROCESSED_DATA_DIR / "test.csv"
 
+# Modelos y artefactos de explicabilidad
 PREPROCESSOR_PATH = MODELS_DIR / "preprocessor.joblib"
 XGBOOST_MODEL_PATH = MODELS_DIR / "xgboost_credit_model.joblib"
 XGBOOST_MODEL_JSON = MODELS_DIR / "xgboost_credit_model.json"
 BENCHMARK_RESULTS_PATH = MODELS_DIR / "benchmark_results.json"
 SHAP_SUMMARY_PATH = MODELS_DIR / "shap_summary_stats.joblib"
 
-# ------------------------------------------------------------------------------
-# 2. PARÁMETROS GENERALES Y REPRODUCIBILIDAD
-# ------------------------------------------------------------------------------
+# 2. Parámetros generales y reproducibilidad
 RANDOM_STATE = 42
-TEST_SIZE = 0.15
-VAL_SIZE = 0.15
 TRAIN_SIZE = 0.70
+VAL_SIZE = 0.15
+TEST_SIZE = 0.15
 
-# Variable Objetivo (Target)
-TARGET_COLUMN = "default_90d"  # 1: Incumplimiento >= 90 días, 0: Buen pagador
+# Variable Objetivo (Target): Incumplimiento de pagos / Mora en deudas o cuentas (SBS F12_16)
+TARGET_COLUMN = "default"  # 1: Atraso/mora en cuentas o deudas en últ. 12 meses, 0: Cumplidor
+SCALE_POS_WEIGHT = 2.99    # Desbalance en la base completa (900 / 301). En el entrenamiento se recalcula
+                           # sobre el set de train (630 / 210 = 3.0) en CreditRiskXGBoostWrapper.fit
 
-# ------------------------------------------------------------------------------
-# 3. DEFINICIÓN DE CARACTERÍSTICAS (FEATURE DEFINITIONS)
-# ------------------------------------------------------------------------------
+# 3. Definición de características según 4 ejes SBS/CAF
 
-# Variables Numéricas Tradicionales
-NUMERICAL_TRADITIONAL_FEATURES = [
+# Eje 1: Variables Sociodemográficas y de Ocupación
+NUMERICAL_SOCIODEMO_FEATURES = [
     "edad",
-    "antiguedad_negocio_meses",
-    "ingreso_mensual_neto",
-    "gasto_mensual_operativo",
-    "monto_solicitado",
-    "plazo_meses",
-    "tasa_interes_anual",
-    "num_consultas_centrales_ult_6m",
+    "carga_familiar_adultos",
+    "carga_familiar_ninos",
 ]
 
-# Variables Numéricas Alternativas / Thin-File (Inclusión Financiera ODS 10)
-NUMERICAL_ALTERNATIVE_FEATURES = [
-    "puntualidad_servicios_basicos",      # Ratio 0.0 a 1.0 de puntualidad en luz/agua
-    "volumen_transacciones_digitales",    # Monto mensual en billeteras digitales (Yape/Plin) en S/
-    "frecuencia_transacciones_yape_mes",  # Número de transacciones mensuales entrantes
-    "antiguedad_celular_meses",           # Meses con la misma línea telefónica móvil
-    "variabilidad_ingresos_cv",           # Coeficiente de variación de ventas (estacionalidad)
+CATEGORICAL_SOCIODEMO_FEATURES = [
+    "genero",               # "Hombre", "Mujer"
+    "nivel_educacion",      # Primaria, Secundaria, Técnico, Universitario
+    "departamento",         # Departamento de residencia (Perú)
+    "ambito",               # "Urbano", "Rural"
+    "condicion_laboral",    # Independiente / Cuenta propia, Empleado, Empleador, etc.
+    "es_informal",          # "Informal / Sin RUC", "Formalizado / Con RUC o Beneficios"
 ]
 
-# Ratios Financieros Derivados (Feature Engineering)
+# Eje 2: Inclusión Digital y Datos Alternativos (Core de la Tesis)
+NUMERICAL_DIGITAL_FEATURES = [
+    "frecuencia_yape_plin",             # 1: Nunca, 2: Poco, 3: Casi siempre, 4: Siempre
+    "pago_celular_frecuencia",          # 1 a 5: Uso celular para cobros y pagos
+    "uso_whatsapp",                     # 1 a 4: Frecuencia de mensajería instantánea
+    "uso_internet",                     # 1 a 4: Frecuencia de navegación / internet
+    "preferencia_efectivo",             # 1 a 5: Grado de acuerdo en que efectivo es más seguro que medios digitales
+    "confianza_herramientas_digitales", # 1 a 5: Facilidad de finanzas digitales
+    "puntualidad_pago_deudas",          # 1 a 5: Pago puntual de obligaciones financieras
+]
+
+CATEGORICAL_DIGITAL_FEATURES = [
+    "adopcion_yape_plin",         # "Sí", "No" (Conoce o usa Yape/Plin/BIM)
+    "tiene_billetera_activa",     # "Sí", "No" (Tenencia activa)
+    "guarda_dinero_recibos",      # "Sí", "No" (Reserva fondos para facturas y servicios)
+    "anota_recibos_vencer",       # "Sí", "No" (Registra vencimientos de luz/agua/teléfono)
+]
+
+# Eje 3: Capacidad y Comportamiento Financiero
+NUMERICAL_CAPACITY_FEATURES = [
+    "dificultad_emergencia_1000",   # 1 a 4: Dificultad para reunir S/ 1,000 ante emergencia
+    "meses_resiliencia_desempleo",  # 1 (<1 sem) a 5 (>6 meses): Resiliencia ante desempleo
+    "sobra_dinero_fin_mes",         # 1 a 5: Dinero sobrante al final del mes
+    "ingreso_apenas_alcanza",       # 1 a 5: Vulnerabilidad de liquidez cotidiana
+    "percepcion_sobreendeudado",    # 1 a 5: Sensación de tener demasiadas deudas
+]
+
+CATEGORICAL_CAPACITY_FEATURES = [
+    "rango_ingreso",                # Tramo de ingresos mensuales en Soles
+    "nivel_socioeconomico",         # NSE A, B, C, D, E
+    "ingresos_estables",            # "Sí", "No" (Regularidad de ingresos)
+    "planifica_presupuesto",        # "Sí", "No" (Plan de ingresos y gastos)
+    "anota_gastos",                 # "Sí", "No" (Registro de egresos)
+    "capacidad_afrontar_imprevisto",# "Sí", "No" (Afronta imprevisto sin endeudarse)
+    # Historial y acceso crediticio formal vs. informal
+    "tiene_cuenta_ahorro",          # "Sí", "No"
+    "tiene_tarjeta_credito",        # "Sí", "No"
+    "tiene_prestamo_personal",      # "Sí", "No"
+    "ha_usado_prestamista",         # "Sí", "No" (Crédito informal / gota a gota)
+    "ha_usado_pandero_junta",       # "Sí", "No" (Crédito informal colaborativo)
+    "credito_formal_negado",        # "Sí", "No" (Rechazo previo en banca/cajas)
+]
+
+# Ratios e Índices Derivados (Feature Engineering Avanzado)
 NUMERICAL_DERIVED_FEATURES = [
-    "cuota_mensual",
-    "flujo_caja_libre_mensual",
-    "ratio_cuota_ingreso",                # Debt-to-Income (DTI)
-    "ratio_cobertura_deuda",              # Debt Service Coverage Ratio (DSCR)
-    "ratio_monto_ingreso",                # Monto / Ingreso Neto
-    "indice_estabilidad_negocio",         # Combinación antigüedad y baja variabilidad
-    "score_comportamiento_alternativo",   # Score compuesto de datos alternativos
+    "indice_inclusion_digital",       # Score 0.0 - 1.0 de transaccionalidad digital
+    "indice_resiliencia_financiera",  # Score 0.0 - 1.0 de capacidad de absorción de shocks
+    "indice_vulnerabilidad_liquidez", # Score 0.0 - 1.0 de estrés financiero cotidiano
+    "indice_cultura_pago",            # Score 0.0 - 1.0 de puntualidad y orden en recibos
 ]
 
+# Listas consolidadas
 ALL_NUMERICAL_FEATURES = (
-    NUMERICAL_TRADITIONAL_FEATURES +
-    NUMERICAL_ALTERNATIVE_FEATURES +
+    NUMERICAL_SOCIODEMO_FEATURES +
+    NUMERICAL_DIGITAL_FEATURES +
+    NUMERICAL_CAPACITY_FEATURES +
     NUMERICAL_DERIVED_FEATURES
 )
 
-# Variables Categóricas
-CATEGORICAL_FEATURES = [
-    "genero",
-    "estado_civil",
-    "nivel_educacion",
-    "tipo_vivienda",
-    "region_peru",
-    "rubro_negocio",
-    "es_informal",                        # 1: Negocio no bancarizado/RUC 10, 0: Formal
-    "posee_garantia_o_aval",              # 1: Sí, 0: No
-]
+ALL_CATEGORICAL_FEATURES = (
+    CATEGORICAL_SOCIODEMO_FEATURES +
+    CATEGORICAL_DIGITAL_FEATURES +
+    CATEGORICAL_CAPACITY_FEATURES
+)
 
-ALL_MODEL_FEATURES = ALL_NUMERICAL_FEATURES + CATEGORICAL_FEATURES
+CATEGORICAL_FEATURES = ALL_CATEGORICAL_FEATURES
+ALL_MODEL_FEATURES = ALL_NUMERICAL_FEATURES + ALL_CATEGORICAL_FEATURES
 
-# ------------------------------------------------------------------------------
-# 4. PARÁMETROS FINANCIEROS Y DE NEGOCIO (Contexto Microfinanciero Peruano / SBS)
-# ------------------------------------------------------------------------------
-# Parámetros de Pérdida Esperada (Expected Loss: EL = PD * EAD * LGD)
-DEFAULT_LGD = 0.50  # Loss Given Default promedio en microfinanzas (50%)
-
-# Umbrales de Decisión Crediticia (Scorecard Cut-offs)
-THRESHOLD_LOW_RISK = 0.20       # PD < 0.20: Aprobado automático (Bajo Riesgo)
-THRESHOLD_MEDIUM_RISK = 0.45    # 0.20 <= PD <= 0.45: Revisión manual (Riesgo Moderado)
-# PD > 0.45: Rechazado automático (Alto Riesgo)
-
-# Escala de Score Crediticio (0 a 1000 puntos)
+# 4. Parámetros financieros y scorecard (Resolución SBS N.° 3780-2021)
 SCORE_MIN = 0
 SCORE_MAX = 1000
 
-# Opciones válidas para interfaz y generación de datos
-REGIONES_PERU = [
-    "Lima/Callao", "Arequipa", "Cusco", "Piura", "La Libertad",
-    "Junín", "Puno", "Lambayeque", "San Martín", "Áncash", "Ica"
+# Parámetros de Pérdida Esperada (Expected Loss: EL = PD * EAD * LGD)
+DEFAULT_LGD = 0.50  # Loss Given Default estándar microfinanzas (50%)
+
+# Umbrales de Riesgo de la Política Crediticia
+# Score = 1000 * (1 - PD)
+# Aprobado: PD <= 0.30 -> Score >= 700
+# Revisión Manual: 0.30 < PD <= 0.45 -> Score entre 550 y 700
+# Rechazado: PD > 0.45 -> Score < 550
+THRESHOLD_LOW_RISK_PD = 0.30     # Score >= 700
+THRESHOLD_HIGH_RISK_PD = 0.45    # Score < 550
+THRESHOLD_LOW_RISK = 0.30
+THRESHOLD_MEDIUM_RISK = 0.45
+
+SCORE_CUTOFF_APPROVAL = 700
+SCORE_CUTOFF_REVIEW = 550
+
+# Opciones válidas para interfaz de usuario
+OPCIONES_DEPARTAMENTO = [
+    "Lima / Callao", "Arequipa", "Cusco", "Piura", "La Libertad",
+    "Junín", "Puno", "Lambayeque", "San Martín", "Áncash", "Ica",
+    "Ayacucho", "Cajamarca", "Loreto", "Huánuco", "Tacna", "Otros Departamentos"
 ]
 
-RUBROS_NEGOCIO = [
-    "Comercio Minorista / Bodega",
-    "Gastronomía / Restaurante",
-    "Servicios Técnicos / Profesionales",
-    "Transporte / Mototaxi / Taxi",
-    "Manufactura / Confección Textil",
-    "Agropecuario / Comercialización Rural",
-    "Ferretería / Materiales de Construcción"
-]
-
-NIVELES_EDUCACION = [
-    "Primaria Completa",
+OPCIONES_EDUCACION = [
+    "Primaria / Sin Instrucción",
     "Secundaria Completa",
-    "Técnico Superior",
-    "Universitario Incompleto",
-    "Universitario Completo",
-    "Postgrado"
+    "Superior Técnico Completo",
+    "Superior Universitario Completo"
 ]
 
-TIPOS_VIVIENDA = [
-    "Propia",
-    "Familiar",
-    "Alquilada",
-    "Hipotecada"
+OPCIONES_CONDICION_LABORAL = [
+    "Trabajador Independiente / Cuenta propia",
+    "Empleado Técnico o Profesional",
+    "Obrero / Empleado Operativo",
+    "Empleador o Patrono (con personal)",
+    "Campesino / Agricultor / Ganadero",
+    "Comerciante Independiente"
 ]
 
-ESTADOS_CIVILES = [
-    "Soltero(a)",
-    "Casado(a)",
-    "Conviviente",
-    "Divorciado(a)",
-    "Viudo(a)"
+OPCIONES_RANGO_INGRESO = [
+    "Menor a S/ 600",
+    "De S/ 601 a S/ 1,200 (Ingreso Mínimo)",
+    "De S/ 1,201 a S/ 2,400",
+    "De S/ 2,401 a S/ 4,000",
+    "Mayor a S/ 4,000"
 ]
 
-# ------------------------------------------------------------------------------
-# 5. HIPERPARÁMETROS DEL MODELO XGBOOST
-# ------------------------------------------------------------------------------
+OPCIONES_NSE = ["A/B", "C", "D", "E"]
+
+# 5. Hiperparámetros optimizados XGBoost
 XGBOOST_DEFAULT_PARAMS = {
-    "n_estimators": 250,
-    "max_depth": 5,
-    "learning_rate": 0.05,
+    "n_estimators": 180,
+    "max_depth": 4,
+    "learning_rate": 0.04,
     "subsample": 0.85,
     "colsample_bytree": 0.85,
-    "min_child_weight": 3,
-    "gamma": 0.1,
-    "reg_alpha": 0.1,
-    "reg_lambda": 1.0,
+    "min_child_weight": 2,
+    "gamma": 0.15,          # Poda analítica de regularización
+    "reg_alpha": 0.3,       # Regularización L1
+    "reg_lambda": 1.5,      # Regularización L2
+    "scale_pos_weight": SCALE_POS_WEIGHT,
     "eval_metric": "auc",
     "random_state": RANDOM_STATE,
     "n_jobs": -1,

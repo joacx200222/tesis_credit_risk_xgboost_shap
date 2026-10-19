@@ -1,15 +1,7 @@
 """
-==============================================================================
-PROYECTO DE TESIS - UNIVERSIDAD DE LIMA
-Carrera: Ingeniería de Sistemas
-Título: Modelo de evaluación de riesgo crediticio para microfinanzas e
-        inclusión financiera mediante XGBoost e Inteligencia Artificial
-        Explicable (SHAP)
-Archivo: src/data_preprocessing.py
 Descripción: Pipeline de preprocesamiento de datos (CRISP-DM Fase 3),
-             imputación estratégica, escalado robusto, codificación One-Hot y
-             partición estratificada (Train / Val / Test).
-==============================================================================
+             escalado robusto, codificación One-Hot y partición estratificada
+             (Train / Val / Test) a partir de la base empírica SBS/CAF 2022.
 """
 
 import json
@@ -22,7 +14,7 @@ import sys
 # Importar configuración e ingeniería de características
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
-from src.feature_engineering import add_engineered_features
+from src.feature_engineering import load_and_extract_sbs_dataset, add_engineered_features
 
 
 class CreditDataPreprocessor:
@@ -39,7 +31,7 @@ class CreditDataPreprocessor:
         categorical_features: List[str] = None
     ):
         self.numerical_features = list(numerical_features or config.ALL_NUMERICAL_FEATURES)
-        self.categorical_features = list(categorical_features or config.CATEGORICAL_FEATURES)
+        self.categorical_features = list(categorical_features or config.ALL_CATEGORICAL_FEATURES)
         
         # Parámetros aprendidos en el ajuste (Fit)
         self.num_medians_: Dict[str, float] = {}
@@ -60,7 +52,7 @@ class CreditDataPreprocessor:
                 q25 = float(X[col].quantile(0.25))
                 q75 = float(X[col].quantile(0.75))
                 iqr = float(q75 - q25)
-                if iqr == 0:
+                if iqr <= 0:
                     iqr = 1.0
                 self.num_medians_[col] = med
                 self.num_iqr_[col] = (med, iqr)
@@ -183,7 +175,7 @@ def stratified_split_dataset(
     random_state: int = config.RANDOM_STATE
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
-    Partición estratificada del conjunto de datos.
+    Partición estratificada del conjunto de datos en Train (70%), Val (15%), Test (15%).
     """
     np.random.seed(random_state)
     train_dfs, val_dfs, test_dfs = [], [], []
@@ -206,14 +198,18 @@ def stratified_split_dataset(
 
 
 def prepare_and_save_data():
-    """Ejecuta el pipeline completo de preparación de datos."""
+    """Ejecuta el pipeline completo de preparación y división de datos."""
     config.PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    config.RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
     config.MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("--- [Fase 3 CRISP-DM: Preparación de Datos] ---")
-    df_raw = pd.read_csv(config.RAW_DATASET_PATH)
-    df_enriched = add_engineered_features(df_raw)
+    print("--- [Fase 3 CRISP-DM: Preparación de Datos con Base SBS/CAF 2022] ---")
+    df_enriched = load_and_extract_sbs_dataset(config.RAW_DTA_PATH)
 
+    # Guardar copia procesada consolidada
+    df_enriched.to_csv(config.RAW_DATASET_CSV, index=False)
+
+    # Partición estratificada
     df_train, df_val, df_test = stratified_split_dataset(df_enriched)
 
     # Persistencia de datasets
@@ -231,7 +227,7 @@ def prepare_and_save_data():
     print(f"     Val   : {len(df_val):,} registros ({df_val[config.TARGET_COLUMN].mean()*100:.2f}% default)")
     print(f"     Test  : {len(df_test):,} registros ({df_test[config.TARGET_COLUMN].mean()*100:.2f}% default)")
     print(f"[OK] Preprocesador guardado en: {config.PREPROCESSOR_PATH.with_suffix('.json')}")
-    print(f"     Total características codificadas: {len(preprocessor.get_feature_names_out())}")
+    print(f"     Total características transformadas: {len(preprocessor.get_feature_names_out())}")
 
 
 if __name__ == "__main__":
