@@ -131,7 +131,7 @@ def train_and_evaluate_all_models() -> Dict[str, Any]:
     Entrena y compara los tres modelos principales según el plan de tesis:
     1. Regresión Logística (Línea Base Tradicional)
     2. Random Forest (Línea Base Ensamble)
-    3. XGBoost Cost-Sensitive (Modelo Propuesto con Base Empírica SBS 2022)
+    3. XGBoost Cost-Sensitive
     """
     print("--- [Fase 4 CRISP-DM: Modelado y Optimización con Base SBS/CAF 2022] ---")
     
