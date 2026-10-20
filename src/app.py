@@ -264,11 +264,10 @@ def run_streamlit_app():
     st.markdown("---")
 
     # TABS DEL SISTEMA
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3 = st.tabs([
         "Originación Individual",
         "Explicabilidad Global XAI",
-        "Benchmarking SBS",
-        "Metodología SBS y ODS"
+        "Benchmarking SBS"
     ])
 
     # TAB 1: ORIGINACIÓN INDIVIDUAL
@@ -501,26 +500,11 @@ def run_streamlit_app():
             st.markdown("##### Cumplimiento de Estándares SBS:")
             st.markdown(
                 r"""
-                - **Estadístico Kolmogorov-Smirnov (KS):** El modelo XGBoost alcanza un **KS > 33%**, superando el piso mínimo regulatorio para microfinanzas ($KS \ge 30\%$).
-                - **Capacidad de Discriminación (AUC-ROC):** Logra un **AUC de 0.7134**, superior al scorecard lineal tradicional en datos alternativos.
-                - **Ponderación Sensible al Costo (`scale_pos_weight = 2.99`):** Compensa el desbalance real de morosidad empírica de la SBS (25.06%), evitando el sesgo pro-solvente.
+                - **Estadístico Kolmogorov-Smirnov (KS, calculado por deciles de riesgo):** XGBoost alcanza un **KS de 33.67%**, superando el piso mínimo de **30%**; la Regresión Logística se queda en 29.95%.
+                - **Capacidad de Discriminación (AUC-ROC):** XGBoost logra un **AUC de 0.7134**, frente a 0.6799 del scorecard lineal tradicional.
+                - **Ponderación Sensible al Costo (`scale_pos_weight` ≈ 3.0):** Calculada sobre el set de entrenamiento (630 cumplidores / 210 morosos), compensa el desbalance de ~25% de mora y evita el sesgo hacia aprobar.
                 """
             )
-
-    # TAB 4: MARCO TEÓRICO, SBS Y ODS
-    with tab4:
-        st.subheader("Marco Normativo SBS y Contribución a los ODS")
-        st.markdown(
-            """
-            ### Resolución SBS N.° 3780-2021
-            - **Uso de Datos Alternativos:** Permite el uso de fuentes de información no tradicionales (billeteras digitales, pagos de servicios) para evaluar clientes sin historial en centrales de riesgo.
-            - **Auditabilidad y Deber de Notificación:** Exige que los modelos internos de riesgo provean explicaciones claras sobre los motivos de denegación o reducción de línea a los usuarios (Razones de Acción Adversa).
-
-            ### Alineamiento con los Objetivos de Desarrollo Sostenible (ODS)
-            - **ODS 8 (Trabajo Decente y Crecimiento Económico):** Facilita el acceso al crédito productivo para microempresarios informales y trabajadores por cuenta propia.
-            - **ODS 10 (Reducción de las Desigualdades):** Rompe la barrera del "thin-file" permitiendo a personas no bancarizadas ser evaluadas a través de su comportamiento en Yape, Plin y pagos de recibos.
-            """
-        )
 
 
 if __name__ == "__main__":
