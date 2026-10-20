@@ -1,9 +1,3 @@
-"""
-Descripción: Prototipo web interactivo en Streamlit (CRISP-DM Fase 6: Despliegue)
-             para evaluación de microcréditos con la base empírica oficial SBS/CAF 2022,
-             explicabilidad local (TreeSHAP Waterfall) y global (Beeswarm),
-             análisis What-If y razones de acción adversa según la Res. SBS 3780-2021.
-"""
 
 import json
 import joblib
