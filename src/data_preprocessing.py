@@ -9,12 +9,9 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import Tuple, List, Dict, Any
-import sys
 
-# Importar configuración e ingeniería de características
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
-from src.feature_engineering import load_and_extract_sbs_dataset, add_engineered_features
+from src.feature_engineering import load_and_extract_sbs_dataset
 
 
 class CreditDataPreprocessor:

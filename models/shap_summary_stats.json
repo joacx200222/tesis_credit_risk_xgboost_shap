@@ -1,0 +1,125 @@
+{
+  "expected_value": 0.055379509925842285,
+  "feature_importance": [
+    {
+      "feature_raw": "indice_vulnerabilidad_liquidez",
+      "mean_abs_shap": 0.25415149331092834,
+      "feature_name": "Vulnerabilidad Financiera Cotidiana",
+      "importance_pct": 11.220396041870117
+    },
+    {
+      "feature_raw": "pago_celular_frecuencia",
+      "mean_abs_shap": 0.21419933438301086,
+      "feature_name": "Uso de Celular para Cobros/Pagos",
+      "importance_pct": 9.456570625305176
+    },
+    {
+      "feature_raw": "indice_resiliencia_financiera",
+      "mean_abs_shap": 0.21335774660110474,
+      "feature_name": "Resiliencia ante Gastos Imprevistos",
+      "importance_pct": 9.419415473937988
+    },
+    {
+      "feature_raw": "puntualidad_pago_deudas",
+      "mean_abs_shap": 0.20433597266674042,
+      "feature_name": "Puntualidad en Pago de Obligaciones",
+      "importance_pct": 9.0211181640625
+    },
+    {
+      "feature_raw": "sobra_dinero_fin_mes",
+      "mean_abs_shap": 0.1887863576412201,
+      "feature_name": "Margen de Dinero Sobrante a Fin de Mes",
+      "importance_pct": 8.334627151489258
+    },
+    {
+      "feature_raw": "ingresos_estables_No",
+      "mean_abs_shap": 0.1437714695930481,
+      "feature_name": "Ingresos Irregulares / Inestables",
+      "importance_pct": 6.347289085388184
+    },
+    {
+      "feature_raw": "percepcion_sobreendeudado",
+      "mean_abs_shap": 0.13774734735488892,
+      "feature_name": "Percepción de Sobreendeudamiento",
+      "importance_pct": 6.081333160400391
+    },
+    {
+      "feature_raw": "nivel_socioeconomico_A/B",
+      "mean_abs_shap": 0.08458057790994644,
+      "feature_name": "Nivel Socioeconomico A/B",
+      "importance_pct": 3.7341020107269287
+    },
+    {
+      "feature_raw": "edad",
+      "mean_abs_shap": 0.08222620189189911,
+      "feature_name": "Edad del Solicitante",
+      "importance_pct": 3.630160093307495
+    },
+    {
+      "feature_raw": "ingresos_estables_Sí",
+      "mean_abs_shap": 0.05863664299249649,
+      "feature_name": "Ingresos Mensuales Regulares",
+      "importance_pct": 2.588717460632324
+    },
+    {
+      "feature_raw": "uso_whatsapp",
+      "mean_abs_shap": 0.05101727694272995,
+      "feature_name": "Frecuencia de Uso de WhatsApp",
+      "importance_pct": 2.2523341178894043
+    },
+    {
+      "feature_raw": "preferencia_efectivo",
+      "mean_abs_shap": 0.050383348017930984,
+      "feature_name": "Preferencia por Efectivo vs. Digital",
+      "importance_pct": 2.2243471145629883
+    },
+    {
+      "feature_raw": "nivel_educacion_Secundaria Completa",
+      "mean_abs_shap": 0.047509945929050446,
+      "feature_name": "Nivel Educacion Secundaria Completa",
+      "importance_pct": 2.0974907875061035
+    },
+    {
+      "feature_raw": "anota_recibos_vencer_No",
+      "mean_abs_shap": 0.04561549797654152,
+      "feature_name": "No Lleva Control de Vencimientos",
+      "importance_pct": 2.0138540267944336
+    },
+    {
+      "feature_raw": "confianza_herramientas_digitales",
+      "mean_abs_shap": 0.03434009104967117,
+      "feature_name": "Confianza en Gestión Financiera Digital",
+      "importance_pct": 1.5160621404647827
+    },
+    {
+      "feature_raw": "es_informal_Formalizado / Con RUC o Beneficios",
+      "mean_abs_shap": 0.030464623123407364,
+      "feature_name": "Negocio Formalizado",
+      "importance_pct": 1.344966173171997
+    },
+    {
+      "feature_raw": "dificultad_emergencia_1000",
+      "mean_abs_shap": 0.02936539426445961,
+      "feature_name": "Dificultad de Reunir S/ 1,000 en Emergencia",
+      "importance_pct": 1.2964369058609009
+    },
+    {
+      "feature_raw": "carga_familiar_adultos",
+      "mean_abs_shap": 0.028499661013484,
+      "feature_name": "Adultos Dependientes en el Hogar",
+      "importance_pct": 1.258216142654419
+    },
+    {
+      "feature_raw": "indice_inclusion_digital",
+      "mean_abs_shap": 0.025697866454720497,
+      "feature_name": "Índice de Inclusión Digital (Yape/Plin)",
+      "importance_pct": 1.134521245956421
+    },
+    {
+      "feature_raw": "departamento_Amazonas",
+      "mean_abs_shap": 0.023891525343060493,
+      "feature_name": "Departamento Amazonas",
+      "importance_pct": 1.0547740459442139
+    }
+  ]
+}

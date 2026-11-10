@@ -6,12 +6,8 @@ Descripción: Evaluación de modelos predictivos bajo métricas de Machine Learn
 
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, Tuple, List
-from pathlib import Path
-import sys
+from typing import Dict, Any, Tuple
 
-# Importar configuración
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
 
 

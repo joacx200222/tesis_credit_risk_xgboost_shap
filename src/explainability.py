@@ -1,15 +1,10 @@
 import json
-import joblib
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, List, Tuple
-from pathlib import Path
+from typing import Dict, Any, List
 import matplotlib.pyplot as plt
-import sys
 import shap
 
-# Importar configuración, preprocesamiento y evaluación
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
 from src.data_preprocessing import CreditDataPreprocessor
 from src.model_training import CreditRiskXGBoostWrapper
@@ -357,10 +352,11 @@ def generate_and_save_artifacts():
 
     # 2. Guardar estadísticas de resumen SHAP
     stats = {
-        "expected_value": explainer.expected_value,
+        "expected_value": float(explainer.expected_value),
         "feature_importance": explainer.get_global_feature_importance(df_test, top_n=20).to_dict(orient="records")
     }
-    joblib.dump(stats, config.SHAP_SUMMARY_PATH)
+    with open(config.SHAP_SUMMARY_PATH, "w", encoding="utf-8") as f:
+        json.dump(stats, f, indent=2, ensure_ascii=False)
     print(f"[OK] Estadísticas SHAP guardadas en: {config.SHAP_SUMMARY_PATH}")
 
 

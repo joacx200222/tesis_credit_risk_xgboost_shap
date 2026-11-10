@@ -9,9 +9,7 @@ Descripción: Optimización de hiperparámetros con Optuna (búsqueda bayesiana 
 import json
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from typing import Callable, Dict, Any
-import sys
 
 import optuna
 import xgboost as xgb
@@ -19,7 +17,6 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
 from src.data_preprocessing import CreditDataPreprocessor
 from src.model_evaluation import compute_roc_curve_and_auc, compute_kolmogorov_smirnov

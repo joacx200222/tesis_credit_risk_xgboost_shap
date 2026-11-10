@@ -6,23 +6,18 @@ Descripción: Pruebas unitarias y de integración del pipeline completo de scori
 import unittest
 import numpy as np
 import pandas as pd
-from pathlib import Path
-import sys
 
-# Añadir directorio raíz al path
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
-from src.feature_engineering import load_and_extract_sbs_dataset, add_engineered_features
-from src.data_preprocessing import CreditDataPreprocessor, stratified_split_dataset
+from src.feature_engineering import load_and_extract_sbs_dataset
+from src.data_preprocessing import CreditDataPreprocessor
 from src.model_training import CreditRiskXGBoostWrapper
 from src.model_evaluation import (
     compute_classification_metrics,
     calculate_expected_loss,
     convert_pd_to_credit_score,
     get_credit_decision,
-    compute_kolmogorov_smirnov
 )
-from src.explainability import CreditRiskExplainer, get_default_explainer
+from src.explainability import get_default_explainer
 
 
 class TestCreditRiskPipeline(unittest.TestCase):

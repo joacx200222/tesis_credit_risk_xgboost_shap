@@ -15,18 +15,16 @@ PROCESSED_VAL_PATH = PROCESSED_DATA_DIR / "val.csv"
 PROCESSED_TEST_PATH = PROCESSED_DATA_DIR / "test.csv"
 
 # Modelos y artefactos de explicabilidad
-PREPROCESSOR_PATH = MODELS_DIR / "preprocessor.joblib"
-XGBOOST_MODEL_PATH = MODELS_DIR / "xgboost_credit_model.joblib"
+PREPROCESSOR_PATH = MODELS_DIR / "preprocessor.json"
 XGBOOST_MODEL_JSON = MODELS_DIR / "xgboost_credit_model.json"
 BENCHMARK_RESULTS_PATH = MODELS_DIR / "benchmark_results.json"
 BEST_PARAMS_PATH = MODELS_DIR / "best_params.json"
-SHAP_SUMMARY_PATH = MODELS_DIR / "shap_summary_stats.joblib"
+SHAP_SUMMARY_PATH = MODELS_DIR / "shap_summary_stats.json"
 
 # 2. Parámetros generales y reproducibilidad
 RANDOM_STATE = 42
 TRAIN_SIZE = 0.70
-VAL_SIZE = 0.15
-TEST_SIZE = 0.15
+VAL_SIZE = 0.15  # test = el 15% restante
 
 # Variable Objetivo (Target): Incumplimiento de pagos / Mora en deudas o cuentas (SBS F12_16)
 TARGET_COLUMN = "default"  # 1: Atraso/mora en cuentas o deudas en últ. 12 meses, 0: Cumplidor
@@ -116,8 +114,6 @@ ALL_CATEGORICAL_FEATURES = (
     CATEGORICAL_CAPACITY_FEATURES
 )
 
-CATEGORICAL_FEATURES = ALL_CATEGORICAL_FEATURES
-ALL_MODEL_FEATURES = ALL_NUMERICAL_FEATURES + ALL_CATEGORICAL_FEATURES
 
 # 4. Parámetros financieros y scorecard (Resolución SBS N.° 3780-2011)
 SCORE_MIN = 0
@@ -131,13 +127,8 @@ DEFAULT_LGD = 0.50  # Loss Given Default estándar microfinanzas (50%)
 # Aprobado: PD <= 0.30 -> Score >= 700
 # Revisión Manual: 0.30 < PD <= 0.45 -> Score entre 550 y 700
 # Rechazado: PD > 0.45 -> Score < 550
-THRESHOLD_LOW_RISK_PD = 0.30     # Score >= 700
-THRESHOLD_HIGH_RISK_PD = 0.45    # Score < 550
-THRESHOLD_LOW_RISK = 0.30
-THRESHOLD_MEDIUM_RISK = 0.45
-
-SCORE_CUTOFF_APPROVAL = 700
-SCORE_CUTOFF_REVIEW = 550
+THRESHOLD_LOW_RISK = 0.30     # Score >= 700
+THRESHOLD_MEDIUM_RISK = 0.45  # Score < 550 por encima de este umbral
 
 # Opciones válidas para interfaz de usuario
 OPCIONES_DEPARTAMENTO = [

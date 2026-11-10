@@ -11,14 +11,11 @@ setup(
     install_requires=[
         "numpy>=1.24.0",
         "pandas>=2.0.0",
-        "scipy>=1.10.0",
         "scikit-learn>=1.3.0",
         "xgboost>=2.0.0",
         "shap>=0.44.0",
-        "streamlit>=1.32.0",
+        "optuna>=3.5.0",
         "matplotlib>=3.7.0",
-        "seaborn>=0.12.0",
-        "plotly>=5.18.0",
-        "joblib>=1.3.0",
+        "streamlit>=1.50.0",
     ],
 )

@@ -1,10 +1,7 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
-import sys
 
-# Importar configuración
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
 
 

@@ -1,17 +1,13 @@
 import json
-import joblib
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import Dict, Any, Tuple, List
-import sys
+from typing import Dict, Any, List
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 import xgboost as xgb
 
-# Importar configuración, preprocesador y evaluación
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
 from src.data_preprocessing import CreditDataPreprocessor
 from src.model_evaluation import compute_classification_metrics
@@ -20,7 +16,7 @@ from src.hyperparameter_tuning import load_best_params
 
 class CreditRiskXGBoostWrapper:
     """
-    Wrapper del modelo XGBoost con soporte para serialización en .joblib y .json,
+    Wrapper del modelo XGBoost con serialización en JSON (metadatos + modelo nativo),
     pesos sensibles al costo (scale_pos_weight = negativos / positivos de train ≈ 3.0)
     e inferencia transparente.
     """
@@ -87,30 +83,9 @@ class CreditRiskXGBoostWrapper:
         xgb_model_path = path.with_name(path.stem + "_native.json")
         self.model.save_model(str(xgb_model_path))
 
-        # Guardar con joblib (modelo principal y alias model.joblib)
-        joblib_path = path.with_suffix(".joblib")
-        joblib.dump(self, joblib_path)
-        
-        # Guardar también como model.joblib en models/ para facilitar consumo
-        alias_joblib = path.parent / "model.joblib"
-        joblib.dump(self, alias_joblib)
-
     @classmethod
     def load(cls, filepath: Path = None) -> "CreditRiskXGBoostWrapper":
-        path = filepath or config.XGBOOST_MODEL_JSON
-        path = Path(path)
-        
-        # Si se pasa un .joblib o existe .joblib, cargarlo directamente
-        joblib_path = path.with_suffix(".joblib")
-        if joblib_path.exists():
-            try:
-                loaded = joblib.load(joblib_path)
-                if isinstance(loaded, cls):
-                    return loaded
-            except Exception:
-                pass
-
-        json_path = path.with_suffix(".json")
+        json_path = Path(filepath or config.XGBOOST_MODEL_JSON).with_suffix(".json")
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         
@@ -121,9 +96,10 @@ class CreditRiskXGBoostWrapper:
         instance.is_fitted = data["is_fitted"]
 
         xgb_model_path = json_path.with_name(json_path.stem + "_native.json")
-        if xgb_model_path.exists():
-            instance.model = xgb.XGBClassifier()
-            instance.model.load_model(str(xgb_model_path))
+        if not xgb_model_path.exists():
+            raise FileNotFoundError(f"No se encontró el modelo nativo de XGBoost en: {xgb_model_path}")
+        instance.model = xgb.XGBClassifier()
+        instance.model.load_model(str(xgb_model_path))
 
         return instance
 
@@ -187,8 +163,6 @@ def train_and_evaluate_all_models() -> Dict[str, Any]:
 
     # Guardar modelo principal serializado
     xgb_wrapper.save(config.XGBOOST_MODEL_JSON)
-    # También serializar preprocesador en formato joblib
-    joblib.dump(preprocessor, config.PREPROCESSOR_PATH.with_suffix(".joblib"))
 
     # Consolidar resultados comparativos (Benchmark institucional SBS)
     benchmark_results = {
@@ -268,8 +242,7 @@ def train_and_evaluate_all_models() -> Dict[str, Any]:
     print("==========================================================================")
     print(f"[OK] Modelo XGBoost serializado en:")
     print(f"     - {config.XGBOOST_MODEL_JSON}")
-    print(f"     - {config.XGBOOST_MODEL_PATH}")
-    print(f"     - {config.MODELS_DIR / 'model.joblib'}")
+    print(f"     - {config.XGBOOST_MODEL_JSON.with_name(config.XGBOOST_MODEL_JSON.stem + '_native.json')}")
     print(f"[OK] Resultados de benchmark guardados en: {config.BENCHMARK_RESULTS_PATH}")
 
     return benchmark_results

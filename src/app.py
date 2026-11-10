@@ -1,27 +1,16 @@
 
 import json
-import joblib
-import numpy as np
 import pandas as pd
 from pathlib import Path
 import sys
 
-# Importar módulos del sistema
+# `streamlit run src/app.py` solo agrega src/ al path; hace falta la raíz para importar el paquete src
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
 from src.data_preprocessing import CreditDataPreprocessor
 from src.model_training import CreditRiskXGBoostWrapper
-from src.explainability import (
-    CreditRiskExplainer,
-    FEATURE_FRIENDLY_NAMES,
-    ADVERSE_ACTION_REASON_MAP,
-    get_default_explainer
-)
-from src.model_evaluation import (
-    calculate_expected_loss,
-    convert_pd_to_credit_score,
-    get_credit_decision
-)
+from src.explainability import CreditRiskExplainer
+from src.model_evaluation import calculate_expected_loss
 
 # Streamlit
 try:
@@ -200,19 +189,7 @@ def create_sample_profiles():
 def load_system_artifacts():
     """Carga los artefactos del modelo y datasets procesados."""
     preprocessor = CreditDataPreprocessor.load(config.PREPROCESSOR_PATH)
-    
-    # Intentar cargar desde model.joblib o json
-    model = None
-    alias_path = config.MODELS_DIR / "model.joblib"
-    if alias_path.exists():
-        try:
-            model = joblib.load(alias_path)
-        except Exception:
-            model = None
-
-    if model is None:
-        model = CreditRiskXGBoostWrapper.load(config.XGBOOST_MODEL_JSON)
-
+    model = CreditRiskXGBoostWrapper.load(config.XGBOOST_MODEL_JSON)
     explainer = CreditRiskExplainer(model, preprocessor)
     
     benchmark_data = {}
@@ -401,7 +378,7 @@ def run_streamlit_app():
         }
 
         st.markdown("---")
-        if st.button("Evaluar Solicitud con XGBoost + TreeSHAP", type="primary", use_container_width=True):
+        if st.button("Evaluar Solicitud con XGBoost + TreeSHAP", type="primary", width="stretch"):
             eval_result = explainer.explain_single_applicant(applicant_dict)
             
             st.markdown("### Resultado de la Evaluación Crediticia")
@@ -461,7 +438,7 @@ def run_streamlit_app():
                 
                 # Renderizar Waterfall Plot
                 fig_waterfall = explainer.generate_waterfall_plot_figure(applicant_dict, max_display=9)
-                st.pyplot(fig_waterfall, use_container_width=True)
+                st.pyplot(fig_waterfall, width="stretch")
 
     # TAB 2: EXPLICABILIDAD GLOBAL XAI
     with tab2:
@@ -470,7 +447,7 @@ def run_streamlit_app():
 
         beeswarm_img_path = config.MODELS_DIR / "shap_beeswarm.png"
         if beeswarm_img_path.exists():
-            st.image(str(beeswarm_img_path), caption="SHAP Summary Plot (Beeswarm) - Base Oficial SBS/CAF 2022", use_container_width=True)
+            st.image(str(beeswarm_img_path), caption="SHAP Summary Plot (Beeswarm) - Base Oficial SBS/CAF 2022", width="stretch")
 
         if df_test is not None:
             st.markdown("##### Tabla de Importancia Relativa Global")
@@ -479,7 +456,7 @@ def run_streamlit_app():
                 df_global_imp[["feature_name", "mean_abs_shap", "importance_pct"]].rename(
                     columns={"feature_name": "Variable", "mean_abs_shap": "Impacto Medio |SHAP|", "importance_pct": "Importancia Relativa (%)"}
                 ),
-                use_container_width=True
+                width="stretch"
             )
 
     # TAB 3: BENCHMARKING DE MODELOS SBS
@@ -489,11 +466,11 @@ def run_streamlit_app():
 
         if benchmark_data and "resumen_comparativo" in benchmark_data:
             df_bench = pd.DataFrame(benchmark_data["resumen_comparativo"])
-            st.dataframe(df_bench, use_container_width=True)
+            st.dataframe(df_bench, width="stretch")
 
             if "comparacion_base_vs_optimizado" in benchmark_data:
                 st.markdown("##### Hiperparámetros base vs optimizados con Optuna (test):")
-                st.dataframe(pd.DataFrame(benchmark_data["comparacion_base_vs_optimizado"]), use_container_width=True)
+                st.dataframe(pd.DataFrame(benchmark_data["comparacion_base_vs_optimizado"]), width="stretch")
 
             m = {k: v["metricas"] for k, v in benchmark_data["modelos"].items()}
             xgb_m, rf_m, lr_m = m["XGBoost_Propuesto"], m["Random_Forest"], m["Regresion_Logistica"]
