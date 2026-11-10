@@ -3,56 +3,61 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
-env/
-venv/
-ENV/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
+.eggs/
+build/
+dist/
+wheels/
 
-# Virtual Environment
+# Entornos virtuales
+venv/
 .venv/
+env/
+ENV/
 
-# Jupyter
-.ipynb_checkpoints
+# Cachés de herramientas y pruebas
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.ipynb_checkpoints/
 
-# IDEs
+# Logs y archivos temporales
+*.log
+logs/
+*.tmp
+scratch_*
+matched_variables.json
+
+# Secretos y configuración local
+.env
+.env.*
+.streamlit/secrets.toml
+*.pem
+*.key
+
+# IDEs y sistema operativo
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Documentation
+# Herramientas de asistentes de código
+.claude/
+
+# Documentos locales
 docs/
 
-# Data & Large datasets
+# Datos
+# La base original de la encuesta no se sube (ver NOTICE.md).
 *.dta
-BD_Encuesta_Capacidades_Financieras_2022.dta
-data/raw/*.csv
-data/raw/*.dta
-data/processed/*.csv
-data/processed/*.parquet
+data/raw/
 data/interim/
 *.parquet
-
-# Scratch & Temporary analysis files
-scratch_*
-*.txt
-matched_variables.json
+# data/processed/*.csv sí se versiona: lo usan las pruebas, el CI y la app.

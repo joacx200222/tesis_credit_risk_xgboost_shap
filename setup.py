@@ -5,7 +5,6 @@ setup(
     version="1.0.0",
     description="Modelo de evaluación de riesgo crediticio para microfinanzas mediante XGBoost e IA Explicable (SHAP)",
     author="Joaquín Ignacio Bernales Demichelli",
-    author_email="20190255@aloe.ulima.edu.pe",
     packages=find_packages(),
     python_requires=">=3.10",
     install_requires=[
