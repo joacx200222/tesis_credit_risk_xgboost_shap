@@ -1,6 +1,37 @@
 # Modelo de Evaluación de Riesgo Crediticio para Microfinanzas mediante XGBoost e IA Explicable (TreeSHAP)
 
+[![tests](https://github.com/joacx200222/tesis_credit_risk_xgboost_shap/actions/workflows/tests.yml/badge.svg)](https://github.com/joacx200222/tesis_credit_risk_xgboost_shap/actions/workflows/tests.yml)
+![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
+![XGBoost](https://img.shields.io/badge/XGBoost-cost--sensitive-189FDD)
+![SHAP](https://img.shields.io/badge/SHAP-TreeSHAP-FF0D57)
+![Optuna](https://img.shields.io/badge/Optuna-TPE-4A6EE0)
+![Streamlit](https://img.shields.io/badge/Streamlit-app-FF4B4B?logo=streamlit&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+> **In short (EN):** A credit-scoring pipeline for Peruvian microfinance that estimates each applicant's probability of default, including *thin-file* borrowers with no credit-bureau history. It uses alternative data from the SBS/CAF 2022 National Financial Capability Survey (mobile-wallet use, bill-payment habits, financial resilience), tunes and compares Logistic Regression, Random Forest and a cost-sensitive XGBoost with Optuna, and explains every decision with TreeSHAP, both portfolio-wide and per applicant, turning the main risk factors into plain-language denial reasons. XGBoost reaches **AUC 0.756** and **KS 44.1%** on a held-out test set. It ships with a Streamlit app for scoring individual applications.
+
 **Tesista:** Joaquín Ignacio Bernales Demichelli — Ingeniería de Sistemas, Universidad de Lima
+
+## Arquitectura
+
+```mermaid
+flowchart LR
+    DTA[("Encuesta SBS/CAF 2022<br/>.dta")] --> ING["ingenieria_variables<br/>variable objetivo + 4 índices"]
+    ING --> PRE["preprocesamiento<br/>imputación, escalado, One-Hot<br/>partición 70/15/15"]
+    PRE --> CSV[("data/processed<br/>train / val / test")]
+    PRE --> PJ[("preprocesador.json")]
+    CSV --> BUS["busqueda_hiperparametros<br/>Optuna TPE + CV 5 folds"]
+    BUS --> MP[("mejores_params.json")]
+    CSV --> ENT["entrenamiento<br/>LR vs RF vs XGBoost"]
+    MP --> ENT
+    ENT --> EVA["evaluacion<br/>AUC, KS, PR-AUC, F1"]
+    ENT --> MOD[("modelo_xgboost.json")]
+    EVA --> BEN[("benchmark.json")]
+    MOD --> EXP["explicabilidad<br/>TreeSHAP local y global"]
+    PJ --> EXP
+    EXP --> APP["app (Streamlit)<br/>score, PD, decisión y motivos"]
+    BEN --> APP
+```
 
 ## Descripción
 
@@ -25,9 +56,9 @@ Detalle completo (PR-AUC, F1, recall, matriz de confusión) en `models/benchmark
 
 ```text
 tesis_credit_risk_xgboost_shap/
-├── BD_Encuesta_Capacidades_Financieras_2022.dta   # Base oficial SBS/CAF 2022 (Stata)
+├── BD_Encuesta_Capacidades_Financieras_2022.dta   # Base oficial SBS/CAF 2022 (no se sube, ver NOTICE.md)
 ├── data/
-│   ├── raw/dataset_sbs_caf_2022.csv               # Base extraída y enriquecida (1,201 registros)
+│   ├── raw/dataset_sbs_caf_2022.csv               # Base extraída y enriquecida (se genera, no se sube)
 │   └── processed/{train,val,test}.csv             # Partición estratificada 70/15/15 (840/180/181)
 ├── models/
 │   ├── preprocesador.json                         # Preprocesador ajustado (94 variables de salida)
@@ -48,7 +79,10 @@ tesis_credit_risk_xgboost_shap/
 ├── tests/
 │   ├── test_pipeline.py              # Pruebas del pipeline completo y de TreeSHAP
 │   └── test_busqueda_hiperparametros.py # Validación cruzada y búsqueda Optuna
+├── .github/workflows/tests.yml   # CI: corre las pruebas en cada push a main
 ├── Dockerfile
+├── LICENSE                       # MIT
+├── NOTICE.md                     # Datos y librerías de terceros
 └── requirements.txt
 ```
 
@@ -92,13 +126,15 @@ python -m venv venv
 venv\Scripts\activate            # Windows  (Linux/macOS: source venv/bin/activate)
 pip install -r requirements.txt
 
+# Opcional: regenerar todo desde la encuesta. Requiere el .dta en la raíz (ver NOTICE.md);
+# sin él, el repo ya trae los CSV procesados y los modelos entrenados.
 python -m src.preprocesamiento         # Ingesta del .dta, índices, partición y preprocesador (~4 s)
 python -m src.busqueda_hiperparametros # Búsqueda Optuna + CV 5-fold (~10 min; genera models/mejores_params.json)
 python -m src.entrenamiento            # Entrena y compara los 3 modelos, base vs optimizado (~10 s)
 python -m src.explicabilidad           # Genera el beeswarm global y las estadísticas SHAP
 
-python -m unittest discover tests -v
-streamlit run src/app.py         # http://localhost:8501
+python -m unittest discover tests -v   # funciona con o sin el .dta
+streamlit run src/app.py               # http://localhost:8501
 ```
 
 ### Docker
@@ -107,6 +143,10 @@ streamlit run src/app.py         # http://localhost:8501
 docker build -t credit-risk-xgboost-shap .
 docker run -p 8501:8501 credit-risk-xgboost-shap
 ```
+
+## Licencia
+
+El código está bajo licencia [MIT](LICENSE). Los datos de la encuesta SBS/CAF y las librerías usadas tienen sus propias condiciones; el detalle está en [NOTICE.md](NOTICE.md).
 
 ## Referencias principales
 
