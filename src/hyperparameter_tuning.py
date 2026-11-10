@@ -1,9 +1,7 @@
 """
-Descripción: Optimización de hiperparámetros con Optuna (búsqueda bayesiana TPE)
-             y validación cruzada estratificada de 5 folds sobre el set de
-             entrenamiento. Se optimizan los tres modelos (XGBoost, Random Forest
-             y Regresión Logística) para que la comparación final sea justa.
-             El set de prueba no participa en la búsqueda.
+Búsqueda de hiperparámetros con Optuna (TPE) y CV estratificada de 5 folds,
+solo sobre train. Se optimizan los tres modelos para que la comparación sea
+pareja; test no se toca acá.
 """
 
 import json
@@ -23,10 +21,7 @@ from src.model_evaluation import compute_roc_curve_and_auc, compute_kolmogorov_s
 
 
 def cross_validate(model_factory: Callable[[], Any], X: np.ndarray, y: np.ndarray) -> Dict[str, float]:
-    """
-    Evalúa un modelo con validación cruzada estratificada de 5 folds.
-    Devuelve el AUC y el KS promedio de los 5 folds de validación.
-    """
+    """AUC y KS promedio de los folds de validación."""
     skf = StratifiedKFold(n_splits=config.CV_FOLDS, shuffle=True, random_state=config.RANDOM_STATE)
     aucs, kss = [], []
     for train_idx, valid_idx in skf.split(X, y):
@@ -56,15 +51,10 @@ def logistic_factory(params: Dict[str, Any]) -> Callable[[], LogisticRegression]
 
 def run_hyperparameter_search(n_trials: Dict[str, int] = None) -> Dict[str, Any]:
     """
-    Ejecuta la búsqueda de hiperparámetros para los tres modelos y guarda
-    los mejores parámetros en models/best_params.json.
-
-    Métrica objetivo: AUC promedio de la validación cruzada. Se usa el AUC y no
-    el KS porque el KS por deciles en folds de ~168 casos (≈42 morosos) es muy
-    discreto y ruidoso; el KS se reporta junto al AUC y se evalúa en test.
+    Optimiza el AUC promedio de la CV. No se optimiza el KS porque en folds de
+    ~168 casos (unos 42 morosos) el KS por deciles salta mucho entre intentos.
     """
     n_trials = n_trials or config.OPTUNA_TRIALS
-    print("--- [Optimización de hiperparámetros: Optuna + validación cruzada estratificada 5-fold] ---")
 
     df_train = pd.read_csv(config.PROCESSED_TRAIN_PATH)
     preprocessor = CreditDataPreprocessor.load(config.PREPROCESSOR_PATH)
@@ -78,7 +68,6 @@ def run_hyperparameter_search(n_trials: Dict[str, int] = None) -> Dict[str, Any]
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     sampler = lambda: optuna.samplers.TPESampler(seed=config.RANDOM_STATE)
 
-    # Espacios de búsqueda por modelo
     def xgb_space(trial):
         return {
             "n_estimators": trial.suggest_int("n_estimators", 100, 600, step=20),
@@ -112,7 +101,7 @@ def run_hyperparameter_search(n_trials: Dict[str, int] = None) -> Dict[str, Any]
 
     results = {}
     for name, (space, factory) in searches.items():
-        # Línea base: los hiperparámetros fijos actuales, evaluados con la misma validación cruzada
+        # los params base con la misma CV, para comparar
         baseline = cross_validate(factory({}), X, y)
 
         def objective(trial):
@@ -144,7 +133,7 @@ def run_hyperparameter_search(n_trials: Dict[str, int] = None) -> Dict[str, Any]
     }
     with open(config.BEST_PARAMS_PATH, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
-    print(f"[OK] Mejores hiperparámetros guardados en: {config.BEST_PARAMS_PATH}")
+    print(f"guardado en {config.BEST_PARAMS_PATH}")
     return output
 
 

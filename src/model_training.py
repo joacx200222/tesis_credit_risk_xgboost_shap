@@ -16,9 +16,8 @@ from src.hyperparameter_tuning import load_best_params
 
 class CreditRiskXGBoostWrapper:
     """
-    Wrapper del modelo XGBoost con serialización en JSON (metadatos + modelo nativo),
-    pesos sensibles al costo (scale_pos_weight = negativos / positivos de train ≈ 3.0)
-    e inferencia transparente.
+    XGBClassifier con scale_pos_weight calculado del train (negativos / positivos),
+    guardado en dos JSON: metadatos y modelo nativo.
     """
     def __init__(self, params: Dict[str, Any] = None):
         self.params = dict(params or config.XGBOOST_DEFAULT_PARAMS)
@@ -30,12 +29,11 @@ class CreditRiskXGBoostWrapper:
 
     def fit(self, X_train: np.ndarray, y_train: np.ndarray, X_val: np.ndarray = None, y_val: np.ndarray = None, feature_names: list = None):
         self.feature_names = feature_names or [f"f_{i}" for i in range(X_train.shape[1])]
-        
-        # Calcular el desbalance real en Train
+
         n_pos = np.sum(y_train == 1)
         n_neg = np.sum(y_train == 0)
         self.scale_pos_weight = float(n_neg / (n_pos if n_pos > 0 else 1))
-        
+
         fit_params = dict(self.params)
         fit_params["scale_pos_weight"] = self.scale_pos_weight
 
@@ -67,8 +65,7 @@ class CreditRiskXGBoostWrapper:
         path = filepath or config.XGBOOST_MODEL_JSON
         path = Path(path).with_suffix(".json")
         path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Guardar en JSON (metadatos e hiperparámetros)
+
         data = {
             "params": {k: v for k, v in self.params.items() if isinstance(v, (int, float, str, bool))},
             "scale_pos_weight": float(self.scale_pos_weight),
@@ -79,7 +76,6 @@ class CreditRiskXGBoostWrapper:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
-        # Guardar modelo nativo XGBoost
         xgb_model_path = path.with_name(path.stem + "_native.json")
         self.model.save_model(str(xgb_model_path))
 
@@ -88,7 +84,7 @@ class CreditRiskXGBoostWrapper:
         json_path = Path(filepath or config.XGBOOST_MODEL_JSON).with_suffix(".json")
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        
+
         instance = cls(params=data["params"])
         instance.scale_pos_weight = data["scale_pos_weight"]
         instance.feature_names = data["feature_names"]
@@ -105,21 +101,14 @@ class CreditRiskXGBoostWrapper:
 
 
 def train_and_evaluate_all_models() -> Dict[str, Any]:
-    """
-    Entrena y compara los tres modelos principales según el plan de tesis:
-    1. Regresión Logística (Línea Base Tradicional)
-    2. Random Forest (Línea Base Ensamble)
-    3. XGBoost Cost-Sensitive
-    """
-    print("--- [Fase 4 CRISP-DM: Modelado y Optimización con Base SBS/CAF 2022] ---")
-    
-    # Cargar datasets particionados
+    """Entrena regresión logística, random forest y XGBoost (base y optimizados) y los compara en test."""
+
     df_train = pd.read_csv(config.PROCESSED_TRAIN_PATH)
     df_val = pd.read_csv(config.PROCESSED_VAL_PATH)
     df_test = pd.read_csv(config.PROCESSED_TEST_PATH)
 
     preprocessor = CreditDataPreprocessor.load(config.PREPROCESSOR_PATH)
-    
+
     X_train = preprocessor.transform(df_train)
     y_train = df_train[config.TARGET_COLUMN].values
 
@@ -131,10 +120,9 @@ def train_and_evaluate_all_models() -> Dict[str, Any]:
 
     feature_names = preprocessor.get_feature_names_out()
 
-    print(f"Dimensiones de entrenamiento: {X_train.shape} | Desbalance: {np.mean(y_train)*100:.2f}% mora")
-    print(f"Dimensiones de prueba:        {X_test.shape}  | Desbalance: {np.mean(y_test)*100:.2f}% mora")
+    print(f"train {X_train.shape}, mora {np.mean(y_train)*100:.2f}% | test {X_test.shape}, mora {np.mean(y_test)*100:.2f}%")
 
-    # Hiperparámetros optimizados con Optuna (src/hyperparameter_tuning.py); {} si no se ha corrido
+    # {} si todavía no se corrió hyperparameter_tuning
     best_log = load_best_params("Regresion_Logistica")
     best_rf = load_best_params("Random_Forest")
     best_xgb = load_best_params("XGBoost")
@@ -144,27 +132,22 @@ def train_and_evaluate_all_models() -> Dict[str, Any]:
     def evaluar(modelo):
         return compute_classification_metrics(y_test, modelo.predict_proba(X_test)[:, 1], threshold=0.50)
 
-    # 1. Regresión Logística con balanceo de clases (base y optimizada)
     log_reg_base = LogisticRegression(**config.LOGREG_DEFAULT_PARAMS).fit(X_train, y_train)
     log_reg = LogisticRegression(**{**config.LOGREG_DEFAULT_PARAMS, **best_log}).fit(X_train, y_train)
     metrics_log_base, metrics_log = evaluar(log_reg_base), evaluar(log_reg)
 
-    # 2. Random Forest balanceado (base y optimizado)
     rf_base = RandomForestClassifier(**config.RF_DEFAULT_PARAMS).fit(X_train, y_train)
     rf_clf = RandomForestClassifier(**{**config.RF_DEFAULT_PARAMS, **best_rf}).fit(X_train, y_train)
     metrics_rf_base, metrics_rf = evaluar(rf_base), evaluar(rf_clf)
 
-    # 3. Modelo Propuesto: XGBoost sensible al costo (base y optimizado)
     xgb_base = CreditRiskXGBoostWrapper()
     xgb_base.fit(X_train, y_train, X_val=X_val, y_val=y_val, feature_names=feature_names)
     xgb_wrapper = CreditRiskXGBoostWrapper(params={**config.XGBOOST_DEFAULT_PARAMS, **best_xgb})
     xgb_wrapper.fit(X_train, y_train, X_val=X_val, y_val=y_val, feature_names=feature_names)
     metrics_xgb_base, metrics_xgb = evaluar(xgb_base), evaluar(xgb_wrapper)
 
-    # Guardar modelo principal serializado
     xgb_wrapper.save(config.XGBOOST_MODEL_JSON)
 
-    # Consolidar resultados comparativos (Benchmark institucional SBS)
     benchmark_results = {
         "hiperparametros_optimizados": optimizado,
         "comparacion_base_vs_optimizado": [
@@ -229,21 +212,14 @@ def train_and_evaluate_all_models() -> Dict[str, Any]:
     with open(config.BENCHMARK_RESULTS_PATH, "w", encoding="utf-8") as f:
         json.dump(benchmark_results, f, indent=2, ensure_ascii=False)
 
-    print("\n[OK] Modelos entrenados y evaluados con éxito.")
-    print("==========================================================================")
+    print()
     print(f"{'Modelo':<30} | {'AUC-ROC':<9} | {'PR-AUC':<8} | {'KS (%)':<8} | {'Recall':<8}")
-    print("--------------------------------------------------------------------------")
     for r in benchmark_results["resumen_comparativo"]:
         print(f"{r['Modelo']:<30} | {r['AUC-ROC']:<9.4f} | {r['PR-AUC']:<8.4f} | {r['KS-Statistic (%)']:<8.2f} | {r['Recall Morosos']:<8.4f}")
-    print("==========================================================================")
+    print()
     print(f"{'Base vs optimizado (test)':<30} | {'KS base':<8} | {'KS opt':<8} | {'AUC base':<8} | {'AUC opt':<8}")
     for r in benchmark_results["comparacion_base_vs_optimizado"]:
         print(f"{r['Modelo']:<30} | {r['KS base (%)']:<8.2f} | {r['KS optimizado (%)']:<8.2f} | {r['AUC base']:<8.4f} | {r['AUC optimizado']:<8.4f}")
-    print("==========================================================================")
-    print(f"[OK] Modelo XGBoost serializado en:")
-    print(f"     - {config.XGBOOST_MODEL_JSON}")
-    print(f"     - {config.XGBOOST_MODEL_JSON.with_name(config.XGBOOST_MODEL_JSON.stem + '_native.json')}")
-    print(f"[OK] Resultados de benchmark guardados en: {config.BENCHMARK_RESULTS_PATH}")
 
     return benchmark_results
 

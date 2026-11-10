@@ -65,7 +65,7 @@ FEATURE_FRIENDLY_NAMES = {
 }
 
 
-# Mapeo oficial de factores SHAP a Razones de Acción Adversa
+# Texto que se le muestra al solicitante cuando esa variable empuja hacia la mora
 ADVERSE_ACTION_REASON_MAP = {
     "indice_vulnerabilidad_liquidez": "Insuficiencia habitual de ingresos familiares reportada en el hogar.",
     "indice_resiliencia_financiera": "Incapacidad para absorber gastos de emergencia sin recurrir a endeudamiento adicional.",
@@ -86,11 +86,7 @@ ADVERSE_ACTION_REASON_MAP = {
 
 
 class CreditRiskExplainer:
-    """
-    Motor de explicabilidad algorítmica para el modelo de riesgo crediticio SBS.
-    Implementa TreeSHAP con soporte para beeswarm global, waterfall local y
-    dictamen auditable que permite informar los motivos de denegación (Ley N.° 32294).
-    """
+    """TreeSHAP sobre el XGBoost: explicación local, importancia global y gráficos."""
 
     def __init__(
         self,
@@ -101,32 +97,24 @@ class CreditRiskExplainer:
         self.preprocessor = preprocessor
         self.feature_names = preprocessor.get_feature_names_out()
 
-        # Instanciar TreeSHAP sobre el estimador nativo de XGBoost
         native_model = model_wrapper.model
         self.tree_explainer = shap.TreeExplainer(native_model)
 
-        # Valor base E[f(x)] derivado del axioma de eficiencia: f(x) = E[f(x)] + sum(phi_i).
-        # Algunas combinaciones de versiones shap/xgboost reportan expected_value = 0
-        # al no leer correctamente el base_score del booster, por lo que se obtiene
-        # directamente del margen del modelo para garantizar la aditividad exacta.
+        # Algunas versiones de shap con xgboost >= 2 leen mal el base_score y dan
+        # expected_value = 0. Se despeja de f(x) = E[f(x)] + sum(phi) en un punto cualquiera.
         x_ref = np.zeros((1, len(self.feature_names)))
         margin_ref = float(native_model.predict(x_ref, output_margin=True)[0])
         self.expected_value = margin_ref - float(np.sum(self.compute_local_shap(x_ref)[0]))
 
     def compute_local_shap(self, X_transformed: np.ndarray) -> np.ndarray:
-        """
-        Calcula los valores SHAP marginales phi_i para una o más observaciones.
-        Retorna un ndarray (n_samples, n_features) en escala log-odds de default.
-        """
+        """Matriz (n, variables) de valores SHAP en log-odds."""
         raw_shap = self.tree_explainer.shap_values(X_transformed)
         if isinstance(raw_shap, list):
-            return raw_shap[1]  # Si fuera multiclase, clase 1
+            return raw_shap[1]  # versiones viejas de shap devuelven una lista por clase
         return raw_shap
 
     def get_global_feature_importance(self, df_sample: pd.DataFrame = None, top_n: int = 15) -> pd.DataFrame:
-        """
-        Calcula la importancia global de características promediando |SHAP| sobre una muestra.
-        """
+        """Promedio de |SHAP| por variable (por defecto sobre test)."""
         if df_sample is None:
             df_sample = pd.read_csv(config.PROCESSED_TEST_PATH)
 
@@ -150,24 +138,19 @@ class CreditRiskExplainer:
         return df_imp.head(top_n)
 
     def explain_single_applicant(self, applicant_raw_dict: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Genera la evaluación crediticia institucional, cálculo de score (0-1000),
-        probabilidad de default PD, valores TreeSHAP phi_i y razones de acción adversa SBS.
-        """
+        """PD, score, decisión, contribuciones SHAP y motivos de denegación para una solicitud."""
         df_single = pd.DataFrame([applicant_raw_dict])
         df_enriched = add_engineered_features(df_single)
         X_trans = self.preprocessor.transform(df_enriched)
 
-        # 1. Inferencia Predictiva
         prob_array = self.model_wrapper.predict_proba(X_trans)[0]
         pd_value = float(prob_array[1])
         score = convert_pd_to_credit_score(pd_value)
         decision, badge_color, policy_desc = get_credit_decision(pd_value)
-        
+
         monto_estimado = float(applicant_raw_dict.get("monto_solicitado", 4500.0))
         expected_loss = calculate_expected_loss(pd_value, monto_estimado, config.DEFAULT_LGD)
 
-        # 2. TreeSHAP Local
         shap_vals = self.compute_local_shap(X_trans)[0]
 
         feature_contributions = []
@@ -181,13 +164,12 @@ class CreditRiskExplainer:
             })
 
         df_contribs = pd.DataFrame(feature_contributions).sort_values("abs_shap", ascending=False)
-        
-        # Factores protectores (reducen riesgo: SHAP negativo)
+
+        # SHAP negativo baja el riesgo, positivo lo sube
         factores_favorables = df_contribs[df_contribs["shap_value"] < 0].head(5).to_dict(orient="records")
-        # Factores de riesgo (aumentan riesgo: SHAP positivo)
         factores_riesgo = df_contribs[df_contribs["shap_value"] > 0].head(5).to_dict(orient="records")
 
-        # 3. Extracción de las 3 Razones Principales de Acción Adversa (Ley N.° 32294)
+        # Hasta 3 motivos, sin repetir texto
         adverse_reasons = []
         for item in factores_riesgo:
             feat = item["feature_raw"]
@@ -203,7 +185,6 @@ class CreditRiskExplainer:
         if not adverse_reasons:
             adverse_reasons = ["No se registraron alertas severas de riesgo de impago en el perfil del solicitante."]
 
-        # 4. Narrativa de Comité
         narrativa = self._generate_business_narrative(
             df_enriched.iloc[0].to_dict(),
             pd_value,
@@ -247,9 +228,7 @@ class CreditRiskExplainer:
         riesgos: List[Dict[str, Any]],
         adverse_reasons: List[str]
     ) -> Dict[str, Any]:
-        """
-        Construye el dictamen auditable individual para el comité de riesgo.
-        """
+        """Resumen en texto para el analista."""
         puntos_fuertes = []
         for f in favorables[:3]:
             puntos_fuertes.append(f"{f['feature_name']} (Atenúa riesgo en {abs(f['shap_value']):.2f} pts log-odds)")
@@ -278,24 +257,19 @@ class CreditRiskExplainer:
         }
 
     def generate_waterfall_plot_figure(self, applicant_raw_dict: Dict[str, Any], max_display: int = 10):
-        """
-        Genera una figura Matplotlib del Waterfall plot de TreeSHAP para la solicitud individual.
-        Optimizado para renderizarse en menos de 0.2 segundos en Streamlit.
-        """
         df_single = pd.DataFrame([applicant_raw_dict])
         df_enriched = add_engineered_features(df_single)
         X_trans = self.preprocessor.transform(df_enriched)
 
         shap_vals = self.compute_local_shap(X_trans)[0]
 
-        # Mostrar valores originales del cuestionario (no escalados) junto a cada variable
+        # Mostrar los valores del cuestionario, no los escalados
         raw_row = df_enriched.iloc[0]
         display_data = np.array([
             float(raw_row[f]) if f in self.preprocessor.numerical_features else float(v)
             for f, v in zip(self.feature_names, X_trans[0])
         ])
 
-        # Crear Explanation object de shap
         explanation = shap.Explanation(
             values=shap_vals,
             base_values=self.expected_value,
@@ -311,15 +285,13 @@ class CreditRiskExplainer:
 
 
 def get_default_explainer() -> CreditRiskExplainer:
-    """Carga y retorna el explicador configurado."""
     preprocessor = CreditDataPreprocessor.load(config.PREPROCESSOR_PATH)
     model = CreditRiskXGBoostWrapper.load(config.XGBOOST_MODEL_JSON)
     return CreditRiskExplainer(model, preprocessor)
 
 
 def generate_and_save_artifacts():
-    """Genera y guarda el beeswarm plot global y las estadísticas de explicabilidad."""
-    print("--- [Generando Artefactos de Explicabilidad TreeSHAP SBS] ---")
+    """Beeswarm global y estadísticas SHAP sobre test."""
     explainer = get_default_explainer()
     df_test = pd.read_csv(config.PROCESSED_TEST_PATH)
 
@@ -328,7 +300,6 @@ def generate_and_save_artifacts():
 
     friendly_names = [FEATURE_FRIENDLY_NAMES.get(f, f.replace("_", " ").title()) for f in explainer.feature_names]
 
-    # 1. Beeswarm Summary Plot
     plt.figure(figsize=(10, 6), dpi=120)
     shap.summary_plot(
         shap_matrix,
@@ -337,7 +308,7 @@ def generate_and_save_artifacts():
         max_display=15,
         show=False
     )
-    # Etiquetas en español (shap las genera en inglés)
+    # shap pone las etiquetas en inglés
     fig = plt.gcf()
     fig.axes[0].set_xlabel("Valor SHAP (impacto en la log-odds de mora)")
     colorbar = fig.axes[-1]
@@ -348,22 +319,19 @@ def generate_and_save_artifacts():
     beeswarm_path = config.MODELS_DIR / "shap_beeswarm.png"
     plt.savefig(beeswarm_path, bbox_inches="tight")
     plt.close()
-    print(f"[OK] Beeswarm plot guardado en: {beeswarm_path}")
 
-    # 2. Guardar estadísticas de resumen SHAP
     stats = {
         "expected_value": float(explainer.expected_value),
         "feature_importance": explainer.get_global_feature_importance(df_test, top_n=20).to_dict(orient="records")
     }
     with open(config.SHAP_SUMMARY_PATH, "w", encoding="utf-8") as f:
         json.dump(stats, f, indent=2, ensure_ascii=False)
-    print(f"[OK] Estadísticas SHAP guardadas en: {config.SHAP_SUMMARY_PATH}")
 
 
 if __name__ == "__main__":
     generate_and_save_artifacts()
-    
-    # Test de solicitud individual
+
+    # prueba rápida con una solicitud
     sample = {
         "edad": 34,
         "carga_familiar_adultos": 2,
@@ -404,9 +372,8 @@ if __name__ == "__main__":
         "credito_formal_negado": "No",
         "monto_solicitado": 4000.0
     }
-    
-    exp = get_default_explainer()
-    res = exp.explain_single_applicant(sample)
-    print("\n--- Test Individual Explicabilidad ---")
-    print(f"Decisión: {res['decision']} | Score: {res['score_crediticio']} | PD: {res['pd_pct']}%")
-    print("Razones Acción Adversa:", res["razones_accion_adversa_sbs"])
+
+    res = get_default_explainer().explain_single_applicant(sample)
+    print(f"{res['decision']} | score {res['score_crediticio']} | PD {res['pd_pct']}%")
+    for r in res["razones_accion_adversa_sbs"]:
+        print(" -", r)

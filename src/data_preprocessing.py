@@ -1,8 +1,4 @@
-"""
-Descripción: Pipeline de preprocesamiento de datos (CRISP-DM Fase 3),
-             escalado robusto, codificación One-Hot y partición estratificada
-             (Train / Val / Test) a partir de la base empírica SBS/CAF 2022.
-"""
+"""Imputación, escalado mediana/IQR, One-Hot y partición train/val/test."""
 
 import json
 import numpy as np
@@ -16,10 +12,8 @@ from src.feature_engineering import load_and_extract_sbs_dataset
 
 class CreditDataPreprocessor:
     """
-    Transformador de datos para el modelo de scoring crediticio.
-    Realiza imputación, escalado de variables numéricas y codificación One-Hot
-    de variables categóricas preservando los nombres de características
-    para compatibilidad directa con SHAP (TreeSHAP).
+    Preprocesador hecho a mano (en vez de un ColumnTransformer) para poder
+    guardarlo en JSON y conservar nombres de columna legibles para SHAP.
     """
 
     def __init__(
@@ -29,20 +23,15 @@ class CreditDataPreprocessor:
     ):
         self.numerical_features = list(numerical_features or config.ALL_NUMERICAL_FEATURES)
         self.categorical_features = list(categorical_features or config.ALL_CATEGORICAL_FEATURES)
-        
-        # Parámetros aprendidos en el ajuste (Fit)
+
         self.num_medians_: Dict[str, float] = {}
-        self.num_iqr_: Dict[str, Tuple[float, float]] = {}  # (median, IQR) para RobustScaler
+        self.num_iqr_: Dict[str, Tuple[float, float]] = {}  # (mediana, IQR)
         self.cat_modes_: Dict[str, str] = {}
         self.cat_categories_: Dict[str, List[Any]] = {}
         self.feature_names_out_: List[str] = []
         self.is_fitted_: bool = False
 
     def fit(self, X: pd.DataFrame, y: pd.Series = None) -> "CreditDataPreprocessor":
-        """
-        Ajusta los parámetros estadísticos del preprocesador sobre el conjunto de entrenamiento.
-        """
-        # 1. Ajuste numérico (Mediana y Rango Intercuartílico IQR)
         for col in self.numerical_features:
             if col in X.columns:
                 med = float(X[col].median())
@@ -57,17 +46,15 @@ class CreditDataPreprocessor:
                 self.num_medians_[col] = 0.0
                 self.num_iqr_[col] = (0.0, 1.0)
 
-        # 2. Ajuste categórico (Categorías únicas y moda)
         self.feature_names_out_ = list(self.numerical_features)
-        
+
         for col in self.categorical_features:
             if col in X.columns:
                 mode_val = str(X[col].mode().iloc[0]) if not X[col].dropna().empty else "Desconocido"
                 cats = sorted([str(c) for c in X[col].dropna().unique().tolist()])
                 self.cat_modes_[col] = mode_val
                 self.cat_categories_[col] = cats
-                
-                # Nombres de variables codificadas One-Hot
+
                 for cat in cats:
                     self.feature_names_out_.append(f"{col}_{cat}")
             else:
@@ -78,27 +65,22 @@ class CreditDataPreprocessor:
         return self
 
     def transform(self, X: pd.DataFrame) -> np.ndarray:
-        """
-        Transforma los datos de entrada aplicando escalado robusto y One-Hot Encoding.
-        """
         if not self.is_fitted_:
             raise ValueError("El preprocesador debe ser ajustado (fit) antes de transformar datos.")
 
         X_df = X.copy()
-        
-        # 1. Transformación numérica (Imputación por mediana + Robust Scaling)
+
         num_arrays = []
         for col in self.numerical_features:
             if col in X_df.columns:
                 vals = X_df[col].fillna(self.num_medians_[col]).values.astype(float)
             else:
                 vals = np.full(len(X_df), self.num_medians_[col], dtype=float)
-            
+
             med, iqr = self.num_iqr_[col]
             scaled = (vals - med) / (iqr if iqr > 0 else 1.0)
             num_arrays.append(scaled.reshape(-1, 1))
 
-        # 2. Transformación categórica (One-Hot Encoding)
         cat_arrays = []
         for col in self.categorical_features:
             if col in X_df.columns:
@@ -111,25 +93,21 @@ class CreditDataPreprocessor:
                 cat_encoded = (vals == str(cat)).astype(float).reshape(-1, 1)
                 cat_arrays.append(cat_encoded)
 
-        # Concatenación final
         all_parts = num_arrays + cat_arrays
         X_out = np.hstack(all_parts) if all_parts else np.empty((len(X_df), 0))
         return X_out
 
     def fit_transform(self, X: pd.DataFrame, y: pd.Series = None) -> np.ndarray:
-        """Ajusta y transforma en un único paso."""
         return self.fit(X, y).transform(X)
 
     def get_feature_names_out(self) -> List[str]:
-        """Retorna los nombres de todas las columnas transformadas (útil para SHAP)."""
         return self.feature_names_out_
 
     def save(self, filepath: Path = None):
-        """Serializa el preprocesador en disco en formato JSON altamente portable."""
         path = filepath or config.PREPROCESSOR_PATH
         path = Path(path).with_suffix(".json")
         path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         data = {
             "numerical_features": self.numerical_features,
             "categorical_features": self.categorical_features,
@@ -145,12 +123,11 @@ class CreditDataPreprocessor:
 
     @classmethod
     def load(cls, filepath: Path = None) -> "CreditDataPreprocessor":
-        """Carga el preprocesador serializado desde archivo JSON."""
         path = filepath or config.PREPROCESSOR_PATH
         path = Path(path).with_suffix(".json")
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        
+
         instance = cls(
             numerical_features=data["numerical_features"],
             categorical_features=data["categorical_features"]
@@ -171,9 +148,7 @@ def stratified_split_dataset(
     val_size: float = config.VAL_SIZE,
     random_state: int = config.RANDOM_STATE
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """
-    Partición estratificada del conjunto de datos en Train (70%), Val (15%), Test (15%).
-    """
+    """70/15/15 estratificado por la variable objetivo."""
     np.random.seed(random_state)
     train_dfs, val_dfs, test_dfs = [], [], []
 
@@ -195,36 +170,28 @@ def stratified_split_dataset(
 
 
 def prepare_and_save_data():
-    """Ejecuta el pipeline completo de preparación y división de datos."""
     config.PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     config.RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
     config.MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("--- [Fase 3 CRISP-DM: Preparación de Datos con Base SBS/CAF 2022] ---")
     df_enriched = load_and_extract_sbs_dataset(config.RAW_DTA_PATH)
 
-    # Guardar copia procesada consolidada
     df_enriched.to_csv(config.RAW_DATASET_CSV, index=False)
 
-    # Partición estratificada
     df_train, df_val, df_test = stratified_split_dataset(df_enriched)
 
-    # Persistencia de datasets
     df_train.to_csv(config.PROCESSED_TRAIN_PATH, index=False)
     df_val.to_csv(config.PROCESSED_VAL_PATH, index=False)
     df_test.to_csv(config.PROCESSED_TEST_PATH, index=False)
 
-    # Ajustar y guardar preprocesador
+    # el preprocesador se ajusta solo con train
     preprocessor = CreditDataPreprocessor()
     preprocessor.fit(df_train)
     preprocessor.save(config.PREPROCESSOR_PATH)
 
-    print(f"[OK] Partición estratificada completada:")
-    print(f"     Train : {len(df_train):,} registros ({df_train[config.TARGET_COLUMN].mean()*100:.2f}% default)")
-    print(f"     Val   : {len(df_val):,} registros ({df_val[config.TARGET_COLUMN].mean()*100:.2f}% default)")
-    print(f"     Test  : {len(df_test):,} registros ({df_test[config.TARGET_COLUMN].mean()*100:.2f}% default)")
-    print(f"[OK] Preprocesador guardado en: {config.PREPROCESSOR_PATH.with_suffix('.json')}")
-    print(f"     Total características transformadas: {len(preprocessor.get_feature_names_out())}")
+    for nombre, d in [("train", df_train), ("val", df_val), ("test", df_test)]:
+        print(f"{nombre:<5} {len(d):>4} filas, mora {d[config.TARGET_COLUMN].mean()*100:.2f}%")
+    print(f"{len(preprocessor.get_feature_names_out())} columnas después del One-Hot")
 
 
 if __name__ == "__main__":

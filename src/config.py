@@ -1,39 +1,36 @@
 from pathlib import Path
 
-# 1. Rutas del proyecto
+# Rutas
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 MODELS_DIR = BASE_DIR / "models"
 
-# Archivos específicos de datos
 RAW_DTA_PATH = BASE_DIR / "BD_Encuesta_Capacidades_Financieras_2022.dta"
 RAW_DATASET_CSV = RAW_DATA_DIR / "dataset_sbs_caf_2022.csv"
 PROCESSED_TRAIN_PATH = PROCESSED_DATA_DIR / "train.csv"
 PROCESSED_VAL_PATH = PROCESSED_DATA_DIR / "val.csv"
 PROCESSED_TEST_PATH = PROCESSED_DATA_DIR / "test.csv"
 
-# Modelos y artefactos de explicabilidad
 PREPROCESSOR_PATH = MODELS_DIR / "preprocessor.json"
 XGBOOST_MODEL_JSON = MODELS_DIR / "xgboost_credit_model.json"
 BENCHMARK_RESULTS_PATH = MODELS_DIR / "benchmark_results.json"
 BEST_PARAMS_PATH = MODELS_DIR / "best_params.json"
 SHAP_SUMMARY_PATH = MODELS_DIR / "shap_summary_stats.json"
 
-# 2. Parámetros generales y reproducibilidad
+# Partición y reproducibilidad
 RANDOM_STATE = 42
 TRAIN_SIZE = 0.70
 VAL_SIZE = 0.15  # test = el 15% restante
 
-# Variable Objetivo (Target): Incumplimiento de pagos / Mora en deudas o cuentas (SBS F12_16)
-TARGET_COLUMN = "default"  # 1: Atraso/mora en cuentas o deudas en últ. 12 meses, 0: Cumplidor
-SCALE_POS_WEIGHT = 2.99    # Desbalance en la base completa (900 / 301). En el entrenamiento se recalcula
-                           # sobre el set de train (630 / 210 = 3.0) en CreditRiskXGBoostWrapper.fit
+# Variable objetivo: pagó tarde o falló en sus pagos (pregunta F12_16)
+TARGET_COLUMN = "default"  # 1 = moroso, 0 = cumplidor
+SCALE_POS_WEIGHT = 2.99    # 900 / 301 en la base completa; al entrenar se recalcula con train (630 / 210)
 
-# 3. Definición de características según 4 ejes SBS/CAF
+# Variables por eje
 
-# Eje 1: Variables Sociodemográficas y de Ocupación
+# Eje 1: sociodemográfico y ocupación
 NUMERICAL_SOCIODEMO_FEATURES = [
     "edad",
     "carga_familiar_adultos",
@@ -49,7 +46,7 @@ CATEGORICAL_SOCIODEMO_FEATURES = [
     "es_informal",          # "Informal / Sin RUC", "Formalizado / Con RUC o Beneficios"
 ]
 
-# Eje 2: Inclusión Digital y Datos Alternativos (Core de la Tesis)
+# Eje 2: inclusión digital y datos alternativos
 NUMERICAL_DIGITAL_FEATURES = [
     "frecuencia_yape_plin",             # 1: Nunca, 2: Poco, 3: Casi siempre, 4: Siempre
     "pago_celular_frecuencia",          # 1 a 5: Uso celular para cobros y pagos
@@ -67,7 +64,7 @@ CATEGORICAL_DIGITAL_FEATURES = [
     "anota_recibos_vencer",       # "Sí", "No" (Registra vencimientos de luz/agua/teléfono)
 ]
 
-# Eje 3: Capacidad y Comportamiento Financiero
+# Eje 3: capacidad y comportamiento financiero
 NUMERICAL_CAPACITY_FEATURES = [
     "dificultad_emergencia_1000",   # 1 a 4: Dificultad para reunir S/ 1,000 ante emergencia
     "meses_resiliencia_desempleo",  # 1 (<1 sem) a 5 (>6 meses): Resiliencia ante desempleo
@@ -83,7 +80,7 @@ CATEGORICAL_CAPACITY_FEATURES = [
     "planifica_presupuesto",        # "Sí", "No" (Plan de ingresos y gastos)
     "anota_gastos",                 # "Sí", "No" (Registro de egresos)
     "capacidad_afrontar_imprevisto",# "Sí", "No" (Afronta imprevisto sin endeudarse)
-    # Historial y acceso crediticio formal vs. informal
+    # crédito formal e informal
     "tiene_cuenta_ahorro",          # "Sí", "No"
     "tiene_tarjeta_credito",        # "Sí", "No"
     "tiene_prestamo_personal",      # "Sí", "No"
@@ -92,15 +89,14 @@ CATEGORICAL_CAPACITY_FEATURES = [
     "credito_formal_negado",        # "Sí", "No" (Rechazo previo en banca/cajas)
 ]
 
-# Ratios e Índices Derivados (Feature Engineering Avanzado)
+# Índices calculados en feature_engineering.py (0 a 1)
 NUMERICAL_DERIVED_FEATURES = [
-    "indice_inclusion_digital",       # Score 0.0 - 1.0 de transaccionalidad digital
-    "indice_resiliencia_financiera",  # Score 0.0 - 1.0 de capacidad de absorción de shocks
-    "indice_vulnerabilidad_liquidez", # Score 0.0 - 1.0 de estrés financiero cotidiano
-    "indice_cultura_pago",            # Score 0.0 - 1.0 de puntualidad y orden en recibos
+    "indice_inclusion_digital",
+    "indice_resiliencia_financiera",
+    "indice_vulnerabilidad_liquidez",
+    "indice_cultura_pago",
 ]
 
-# Listas consolidadas
 ALL_NUMERICAL_FEATURES = (
     NUMERICAL_SOCIODEMO_FEATURES +
     NUMERICAL_DIGITAL_FEATURES +
@@ -115,22 +111,17 @@ ALL_CATEGORICAL_FEATURES = (
 )
 
 
-# 4. Parámetros financieros y scorecard (Resolución SBS N.° 3780-2011)
+# Score y política de crédito
 SCORE_MIN = 0
 SCORE_MAX = 1000
 
-# Parámetros de Pérdida Esperada (Expected Loss: EL = PD * EAD * LGD)
-DEFAULT_LGD = 0.50  # Loss Given Default estándar microfinanzas (50%)
+DEFAULT_LGD = 0.50  # para la pérdida esperada EL = PD * EAD * LGD
 
-# Umbrales de Riesgo de la Política Crediticia
-# Score = 1000 * (1 - PD)
-# Aprobado: PD <= 0.30 -> Score >= 700
-# Revisión Manual: 0.30 < PD <= 0.45 -> Score entre 550 y 700
-# Rechazado: PD > 0.45 -> Score < 550
-THRESHOLD_LOW_RISK = 0.30     # Score >= 700
-THRESHOLD_MEDIUM_RISK = 0.45  # Score < 550 por encima de este umbral
+# Score = 1000 * (1 - PD). Aprueba si PD <= 0.30, revisión manual hasta 0.45, rechaza por encima.
+THRESHOLD_LOW_RISK = 0.30
+THRESHOLD_MEDIUM_RISK = 0.45
 
-# Opciones válidas para interfaz de usuario
+# Opciones de los selectores de la app
 OPCIONES_DEPARTAMENTO = [
     "Lima / Callao", "Arequipa", "Cusco", "Piura", "La Libertad",
     "Junín", "Puno", "Lambayeque", "San Martín", "Áncash", "Ica",
@@ -163,8 +154,7 @@ OPCIONES_RANGO_INGRESO = [
 
 OPCIONES_NSE = ["A/B", "C", "D", "E"]
 
-# 5. Hiperparámetros base (punto de partida fijo; los optimizados los busca
-#    src/hyperparameter_tuning.py y se guardan en models/best_params.json)
+# Hiperparámetros base. Los optimizados salen de hyperparameter_tuning.py (models/best_params.json).
 XGBOOST_DEFAULT_PARAMS = {
     "n_estimators": 180,
     "max_depth": 4,
@@ -172,9 +162,9 @@ XGBOOST_DEFAULT_PARAMS = {
     "subsample": 0.85,
     "colsample_bytree": 0.85,
     "min_child_weight": 2,
-    "gamma": 0.15,          # Poda analítica de regularización
-    "reg_alpha": 0.3,       # Regularización L1
-    "reg_lambda": 1.5,      # Regularización L2
+    "gamma": 0.15,
+    "reg_alpha": 0.3,   # L1
+    "reg_lambda": 1.5,  # L2
     "scale_pos_weight": SCALE_POS_WEIGHT,
     "eval_metric": "auc",
     "random_state": RANDOM_STATE,
@@ -196,6 +186,6 @@ LOGREG_DEFAULT_PARAMS = {
     "random_state": RANDOM_STATE,
 }
 
-# 6. Optimización de hiperparámetros (Optuna + validación cruzada estratificada)
+# Búsqueda con Optuna
 CV_FOLDS = 5
 OPTUNA_TRIALS = {"XGBoost": 100, "Random_Forest": 60, "Regresion_Logistica": 30}

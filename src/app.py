@@ -1,4 +1,3 @@
-
 import json
 import pandas as pd
 from pathlib import Path
@@ -21,9 +20,9 @@ except ImportError:
 
 
 def create_sample_profiles():
-    """Perfiles preestablecidos basados en el cuestionario oficial SBS/CAF 2022."""
+    """Perfiles de ejemplo para precargar el formulario."""
     return {
-        "🟢 Perfil Aprobado (Bajo Riesgo)": {
+        "Perfil aprobado (bajo riesgo)": {
             "edad": 38,
             "carga_familiar_adultos": 2,
             "carga_familiar_ninos": 1,
@@ -63,7 +62,7 @@ def create_sample_profiles():
             "credito_formal_negado": "No",
             "monto_solicitado": 6000.0
         },
-        "🟡 Perfil Revisión Manual (Riesgo Medio)": {
+        "Perfil revisión manual (riesgo medio)": {
             "edad": 29,
             "carga_familiar_adultos": 1,
             "carga_familiar_ninos": 2,
@@ -103,7 +102,7 @@ def create_sample_profiles():
             "credito_formal_negado": "No",
             "monto_solicitado": 4500.0
         },
-        "🔴 Perfil Rechazado (Alto Riesgo)": {
+        "Perfil rechazado (alto riesgo)": {
             "edad": 45,
             "carga_familiar_adultos": 2,
             "carga_familiar_ninos": 3,
@@ -143,7 +142,7 @@ def create_sample_profiles():
             "credito_formal_negado": "Sí",
             "monto_solicitado": 3500.0
         },
-        "⚪ Perfil en Blanco (Personalizado)": {
+        "Perfil en blanco": {
             "edad": 30,
             "carga_familiar_adultos": 1,
             "carga_familiar_ninos": 0,
@@ -187,11 +186,10 @@ def create_sample_profiles():
 
 
 def load_system_artifacts():
-    """Carga los artefactos del modelo y datasets procesados."""
     preprocessor = CreditDataPreprocessor.load(config.PREPROCESSOR_PATH)
     model = CreditRiskXGBoostWrapper.load(config.XGBOOST_MODEL_JSON)
     explainer = CreditRiskExplainer(model, preprocessor)
-    
+
     benchmark_data = {}
     if config.BENCHMARK_RESULTS_PATH.exists():
         with open(config.BENCHMARK_RESULTS_PATH, "r", encoding="utf-8") as f:
@@ -203,7 +201,6 @@ def load_system_artifacts():
 
 
 def run_streamlit_app():
-    """Función principal de la aplicación Streamlit."""
     if not STREAMLIT_AVAILABLE:
         print("[AVISO] Streamlit no está instalado. Ejecuta: streamlit run src/app.py")
         return
@@ -214,11 +211,9 @@ def run_streamlit_app():
         initial_sidebar_state="expanded"
     )
 
-    # Cargar artefactos del modelo
     preprocessor, model, explainer, benchmark_data, df_test = load_system_artifacts()
     sample_profiles = create_sample_profiles()
 
-    # SIDEBAR: Presets y Parámetros Regulatorios
     st.sidebar.markdown("### Cargar Perfil de Prueba")
     selected_preset = st.sidebar.selectbox("Selecciona un perfil:", list(sample_profiles.keys()))
     preset = sample_profiles[selected_preset]
@@ -230,25 +225,21 @@ def run_streamlit_app():
     st.sidebar.caption("Modelo: XGBoost Cost-Sensitive + TreeSHAP")
     st.sidebar.caption("Base: Encuesta SBS/CAF 2022")
 
-    # HEADER PRINCIPAL
     st.title("Scoring crediticio para microfinanzas")
     st.markdown("---")
 
-    # TABS DEL SISTEMA
     tab1, tab2, tab3 = st.tabs([
         "Originación Individual",
         "Explicabilidad Global XAI",
         "Benchmarking SBS"
     ])
 
-    # TAB 1: ORIGINACIÓN INDIVIDUAL
     with tab1:
         st.subheader("Formulario de Solicitud de Microcrédito (Cuestionario SBS/CAF 2022)")
         st.markdown("Ingresa los datos socioeconómicos, de inclusión digital y comportamiento financiero del solicitante:")
 
         col1, col2, col3 = st.columns(3)
 
-        # Columna 1: Eje 1 (Sociodemográfico y Ocupación)
         with col1:
             st.markdown("##### Eje 1: Sociodemográfico y Ocupación")
             edad = st.number_input("Edad (Años)", min_value=18, max_value=85, value=preset["edad"])
@@ -256,17 +247,16 @@ def run_streamlit_app():
             nivel_educacion = st.selectbox("Nivel Educativo", config.OPCIONES_EDUCACION, index=config.OPCIONES_EDUCACION.index(preset["nivel_educacion"]))
             departamento = st.selectbox("Departamento", config.OPCIONES_DEPARTAMENTO, index=config.OPCIONES_DEPARTAMENTO.index(preset["departamento"]))
             ambito = st.selectbox("Ámbito Geográfico", ["Urbano", "Rural"], index=0 if preset["ambito"] == "Urbano" else 1)
-            
+
             c_sub1, c_sub2 = st.columns(2)
             with c_sub1:
                 carga_familiar_adultos = st.number_input("Adultos en hogar", min_value=1, max_value=10, value=preset["carga_familiar_adultos"])
             with c_sub2:
                 carga_familiar_ninos = st.number_input("Hijos menores", min_value=0, max_value=10, value=preset["carga_familiar_ninos"])
-            
+
             condicion_laboral = st.selectbox("Ocupación / Condición", config.OPCIONES_CONDICION_LABORAL, index=config.OPCIONES_CONDICION_LABORAL.index(preset["condicion_laboral"]))
             es_informal = st.selectbox("Condición Tributaria / Formalidad", ["Informal / Sin RUC", "Formalizado / Con RUC o Beneficios"], index=0 if preset["es_informal"] == "Informal / Sin RUC" else 1)
 
-        # Columna 2: Eje 2 (Inclusión Digital y Datos Alternativos - Core Tesis)
         with col2:
             st.markdown("##### Eje 2: Inclusión Digital y Datos Alternativos")
             adopcion_yape_plin = st.selectbox("¿Usa Billeteras Móviles (Yape/Plin/BIM)?", ["Sí", "No"], index=0 if preset["adopcion_yape_plin"] == "Sí" else 1)
@@ -282,29 +272,28 @@ def run_streamlit_app():
             uso_internet = st.slider("Uso de Internet en su vida diaria (1 a 4)", 1, 4, preset["uso_internet"])
             preferencia_efectivo = st.slider("Aversión a lo digital: 'Prefiero efectivo a tarjetas/apps' (1 a 5)", 1, 5, preset["preferencia_efectivo"])
             confianza_herramientas_digitales = st.slider("Confianza: 'Herramientas digitales facilitan mis finanzas' (1 a 5)", 1, 5, preset["confianza_herramientas_digitales"])
-            
+
             st.markdown("###### Puntualidad en Cuentas y Recibos Básicos")
             p_sub1, p_sub2 = st.columns(2)
             with p_sub1:
                 guarda_dinero_recibos = st.selectbox("¿Reserva dinero para facturas?", ["Sí", "No"], index=0 if preset["guarda_dinero_recibos"] == "Sí" else 1)
             with p_sub2:
                 anota_recibos_vencer = st.selectbox("¿Anota fechas de vencimiento?", ["Sí", "No"], index=0 if preset["anota_recibos_vencer"] == "Sí" else 1)
-            
+
             puntualidad_pago_deudas = st.slider("Puntualidad declarada en cuentas y deudas (1: Nunca a 5: Siempre)", 1, 5, preset["puntualidad_pago_deudas"])
 
-        # Columna 3: Eje 3 (Capacidad, Resiliencia y Crédito Previo)
         with col3:
             st.markdown("##### Eje 3: Capacidad y Comportamiento Financiero")
             rango_ingreso = st.selectbox("Nivel de Ingreso Mensual del Hogar", config.OPCIONES_RANGO_INGRESO, index=config.OPCIONES_RANGO_INGRESO.index(preset["rango_ingreso"]))
             nivel_socioeconomico = st.selectbox("Nivel Socioeconómico (NSE)", config.OPCIONES_NSE, index=config.OPCIONES_NSE.index(preset["nivel_socioeconomico"]))
             ingresos_estables = st.selectbox("¿Sus ingresos mensuales son regulares/estables?", ["Sí", "No"], index=0 if preset["ingresos_estables"] == "Sí" else 1)
-            
+
             pl_sub1, pl_sub2 = st.columns(2)
             with pl_sub1:
                 planifica_presupuesto = st.selectbox("¿Elabora presupuesto?", ["Sí", "No"], index=0 if preset["planifica_presupuesto"] == "Sí" else 1)
             with pl_sub2:
                 anota_gastos = st.selectbox("¿Registra gastos?", ["Sí", "No"], index=0 if preset["anota_gastos"] == "Sí" else 1)
-            
+
             capacidad_afrontar_imprevisto = st.selectbox("¿Puede afrontar un gasto imprevisto hoy sin endeudarse?", ["Sí", "No"], index=0 if preset["capacidad_afrontar_imprevisto"] == "Sí" else 1)
             dificultad_emergencia_1000 = st.select_slider(
                 "Dificultad de reunir S/ 1,000 en emergencia",
@@ -321,7 +310,7 @@ def run_streamlit_app():
             sobra_dinero_fin_mes = st.slider("Le queda dinero de sobra a fin de mes (1 a 5)", 1, 5, preset["sobra_dinero_fin_mes"])
             ingreso_apenas_alcanza = st.slider("Vulnerabilidad: 'El ingreso apenas alcanza' (1 a 5)", 1, 5, preset["ingreso_apenas_alcanza"])
             percepcion_sobreendeudado = st.slider("Sobreendeudamiento: 'Tengo demasiadas deudas' (1 a 5)", 1, 5, preset["percepcion_sobreendeudado"])
-            
+
             st.markdown("###### Historial Crediticio Formal vs. Informal")
             h_sub1, h_sub2 = st.columns(2)
             with h_sub1:
@@ -335,7 +324,6 @@ def run_streamlit_app():
 
             monto_solicitado = st.number_input("Monto Solicitado (S/)", min_value=500.0, max_value=50000.0, value=float(preset["monto_solicitado"]), step=500.0)
 
-        # Consolidar diccionario de entrada
         applicant_dict = {
             "edad": edad,
             "carga_familiar_adultos": carga_familiar_adultos,
@@ -380,10 +368,9 @@ def run_streamlit_app():
         st.markdown("---")
         if st.button("Evaluar Solicitud con XGBoost + TreeSHAP", type="primary", width="stretch"):
             eval_result = explainer.explain_single_applicant(applicant_dict)
-            
+
             st.markdown("### Resultado de la Evaluación Crediticia")
-            
-            # Tarjetas de KPI Principales
+
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
             with kpi1:
                 st.metric("Score Crediticio (0 - 1000)", f"{eval_result['score_crediticio']} pts")
@@ -393,17 +380,16 @@ def run_streamlit_app():
                 el_custom = calculate_expected_loss(eval_result['pd_value'], monto_solicitado, config.DEFAULT_LGD)
                 st.metric("Pérdida Esperada (EL)", f"S/ {el_custom:,.2f}", help="Calculado con LGD normativo SBS del 50%")
             with kpi4:
-                st.markdown(f"**Dictamen del Modelo:**")
+                st.markdown("**Dictamen del Modelo:**")
                 st.markdown(
                     f"<div style='background-color:{eval_result['badge_color']}; color:white; font-size:18px; font-weight:bold; text-align:center; padding:10px; border-radius:8px;'>"
                     f"{eval_result['decision']}</div>",
                     unsafe_allow_html=True
                 )
 
-            st.caption(f"{eval_result['politica_descripcion']}")
+            st.caption(eval_result['politica_descripcion'])
             st.markdown("---")
 
-            # Panel de Explicabilidad y Dictamen Regulatorio
             res_col1, res_col2 = st.columns([1, 1])
 
             with res_col1:
@@ -419,11 +405,11 @@ def run_streamlit_app():
                 st.markdown("##### Dictamen para el Comité de Créditos")
                 narr = eval_result["narrativa_comite"]
                 st.write(f"**Resumen:** {narr['resumen_ejecutivo']}")
-                
+
                 st.markdown("**Fortalezas Detectadas:**")
                 for f in narr["puntos_fuertes"]:
                     st.markdown(f"- {f}")
-                
+
                 st.markdown("**Factores de Riesgo:**")
                 for a in narr["alertas_riesgo"]:
                     st.markdown(f"- {a}")
@@ -434,13 +420,11 @@ def run_streamlit_app():
 
             with res_col2:
                 st.markdown("##### Explicabilidad Local TreeSHAP (Waterfall Plot)")
-                st.caption(f"Valor Base E[f(x)] = {eval_result['expected_value']:.4f} log-odds | En tiempo real (< 0.5 s)")
-                
-                # Renderizar Waterfall Plot
+                st.caption(f"Valor Base E[f(x)] = {eval_result['expected_value']:.4f} log-odds")
+
                 fig_waterfall = explainer.generate_waterfall_plot_figure(applicant_dict, max_display=9)
                 st.pyplot(fig_waterfall, width="stretch")
 
-    # TAB 2: EXPLICABILIDAD GLOBAL XAI
     with tab2:
         st.subheader("Explicabilidad Global del Portafolio (TreeSHAP Beeswarm)")
         st.markdown("Ranking de las variables con mayor contribución promedio sobre la base empírica SBS/CAF 2022:")
@@ -459,7 +443,6 @@ def run_streamlit_app():
                 width="stretch"
             )
 
-    # TAB 3: BENCHMARKING DE MODELOS SBS
     with tab3:
         st.subheader("Validación y Comparativa de Modelos")
         st.markdown("Validación experimental sobre el conjunto de prueba independiente de la encuesta SBS/CAF 2022:")

@@ -12,11 +12,7 @@ def calculate_digital_inclusion_index(
     uso_whatsapp: np.ndarray,
     uso_internet: np.ndarray
 ) -> np.ndarray:
-    """
-    Calcula el Índice de Inclusión y Transaccionalidad Digital (0.0 a 1.0).
-    A mayor uso regular de billeteras móviles y herramientas digitales,
-    mayor huella transaccional alternativa.
-    """
+    """Índice de inclusión digital (0 a 1): uso de billeteras, celular, WhatsApp e internet."""
     adop_norm = np.where(adopcion_yape == "Sí", 1.0, 0.0)
     frec_norm = np.clip((frecuencia_yape - 1.0) / 3.0, 0.0, 1.0)
     cel_norm = np.clip((pago_celular - 1.0) / 4.0, 0.0, 1.0)
@@ -39,14 +35,11 @@ def calculate_financial_resilience_index(
     sobra_fin_mes: np.ndarray,
     dificultad_1000: np.ndarray
 ) -> np.ndarray:
-    """
-    Calcula el Índice de Resiliencia Financiera (0.0 a 1.0).
-    Mide la capacidad de absorber choques de liquidez sin recurrir al impago.
-    """
+    """Índice de resiliencia (0 a 1): qué tan bien aguanta un imprevisto o perder su ingreso."""
     imprev_norm = np.where(afronta_imprevisto == "Sí", 1.0, 0.0)
     desemp_norm = np.clip((meses_desempleo - 1.0) / 4.0, 0.0, 1.0)
     sobra_norm = np.clip((sobra_fin_mes - 1.0) / 4.0, 0.0, 1.0)
-    # dificultad_1000: 1: Nada difícil (alta resiliencia) a 4: Muy difícil
+    # dificultad_1000 va de 1 (nada difícil) a 4, por eso se invierte
     facilidad_1000 = np.clip((4.0 - dificultad_1000) / 3.0, 0.0, 1.0)
 
     indice = (
@@ -63,10 +56,7 @@ def calculate_liquidity_vulnerability_index(
     sobreendeudado: np.ndarray,
     credito_negado: np.ndarray
 ) -> np.ndarray:
-    """
-    Calcula el Índice de Vulnerabilidad de Liquidez (0.0 a 1.0).
-    Captura el estrés financiero del hogar y la sobrecarga de obligaciones.
-    """
+    """Índice de vulnerabilidad de liquidez (0 a 1): ingreso que no alcanza, deudas, crédito negado."""
     alcanza_norm = np.clip((apenas_alcanza - 1.0) / 4.0, 0.0, 1.0)
     deuda_norm = np.clip((sobreendeudado - 1.0) / 4.0, 0.0, 1.0)
     negado_norm = np.where(credito_negado == "Sí", 1.0, 0.0)
@@ -80,10 +70,7 @@ def calculate_payment_culture_index(
     guarda_recibos: np.ndarray,
     anota_recibos: np.ndarray
 ) -> np.ndarray:
-    """
-    Calcula el Índice de Cultura de Pago y Cumplimiento (0.0 a 1.0).
-    Basado en hábitos de reserva y puntualidad en servicios esenciales.
-    """
+    """Índice de cultura de pago (0 a 1): puntualidad y orden con los recibos."""
     punt_norm = np.clip((puntualidad_deudas - 1.0) / 4.0, 0.0, 1.0)
     guarda_norm = np.where(guarda_recibos == "Sí", 1.0, 0.0)
     anota_norm = np.where(anota_recibos == "Sí", 1.0, 0.0)
@@ -93,13 +80,9 @@ def calculate_payment_culture_index(
 
 
 def add_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Aplica el cálculo de los 4 índices sintéticos a cualquier DataFrame
-    que contenga las variables del cuestionario.
-    """
+    """Agrega los 4 índices a un DataFrame con las variables del cuestionario."""
     df_out = df.copy()
 
-    # 1. Índice de Inclusión Digital
     df_out["indice_inclusion_digital"] = calculate_digital_inclusion_index(
         df_out["adopcion_yape_plin"].values,
         df_out["frecuencia_yape_plin"].values.astype(float),
@@ -108,7 +91,6 @@ def add_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
         df_out["uso_internet"].values.astype(float),
     )
 
-    # 2. Índice de Resiliencia Financiera
     df_out["indice_resiliencia_financiera"] = calculate_financial_resilience_index(
         df_out["capacidad_afrontar_imprevisto"].values,
         df_out["meses_resiliencia_desempleo"].values.astype(float),
@@ -116,14 +98,12 @@ def add_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
         df_out["dificultad_emergencia_1000"].values.astype(float),
     )
 
-    # 3. Índice de Vulnerabilidad de Liquidez
     df_out["indice_vulnerabilidad_liquidez"] = calculate_liquidity_vulnerability_index(
         df_out["ingreso_apenas_alcanza"].values.astype(float),
         df_out["percepcion_sobreendeudado"].values.astype(float),
         df_out["credito_formal_negado"].values,
     )
 
-    # 4. Índice de Cultura de Pago
     df_out["indice_cultura_pago"] = calculate_payment_culture_index(
         df_out["puntualidad_pago_deudas"].values.astype(float),
         df_out["guarda_dinero_recibos"].values,
@@ -134,40 +114,32 @@ def add_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_and_extract_sbs_dataset(dta_path: Path = None) -> pd.DataFrame:
-    """
-    Lee la base de datos empírica oficial SBS/CAF 2022 y mapea las preguntas
-    del cuestionario a las columnas estandarizadas del modelo de scoring.
-    """
+    """Lee el .dta de la encuesta SBS/CAF 2022 y arma una columna por variable del modelo."""
     path = dta_path or config.RAW_DTA_PATH
     if not Path(path).exists():
         raise FileNotFoundError(f"No se encontró el archivo Stata en: {path}")
 
-    # Cargar base cruda en Stata
     df_raw = pd.read_stata(path, convert_categoricals=False)
 
     df = pd.DataFrame()
 
-    # VARIABLE OBJETIVO (TARGET: Default / Mora en Cuentas y Deudas)
-    # F12_16_Rp: "p) Pagué mis cuentas tarde; fallé en los pagos"
-    # Quienes no tuvieron déficit (F11 == 1) tienen NaN en F12 y son 0 (No default)
+    # Objetivo. F12_16_Rp: "pagué mis cuentas tarde; fallé en los pagos".
+    # Quien no tuvo déficit (F11 == 1) no responde F12, queda en NaN y cuenta como 0.
     f12_16_clean = df_raw["F12_16_Rp"].fillna(2.0)
     df[config.TARGET_COLUMN] = (f12_16_clean == 1.0).astype(int)
 
-    # EJE 1: VARIABLES SOCIODEMOGRÁFICAS Y OCUPACIÓN
-    # Edad
+    # Eje 1: sociodemográfico. 97/98/99 son "no sabe / no responde".
     edad = df_raw["D01_1"].replace({97: np.nan, 98: np.nan, 99: np.nan})
     df["edad"] = edad.fillna(edad.median()).astype(float)
 
-    # Cargas familiares
     adultos = df_raw["D05_AD"].replace({97: np.nan, 98: np.nan, 99: np.nan}).fillna(2.0)
     ninos = df_raw["D05_CH"].replace({97: np.nan, 98: np.nan, 99: np.nan}).fillna(1.0)
     df["carga_familiar_adultos"] = adultos.astype(float)
     df["carga_familiar_ninos"] = ninos.astype(float)
 
-    # Género: D01 (1: Hombre, 2: Mujer)
+    # D01: 1 hombre, 2 mujer
     df["genero"] = df_raw["D01"].map({1.0: "Hombre", 2.0: "Mujer"}).fillna("Mujer")
 
-    # Nivel Educativo: D09
     def map_educacion(val):
         if val in [1.0, 2.0]:
             return "Primaria / Sin Instrucción"
@@ -181,7 +153,7 @@ def load_and_extract_sbs_dataset(dta_path: Path = None) -> pd.DataFrame:
 
     df["nivel_educacion"] = df_raw["D09"].apply(map_educacion)
 
-    # Departamento: D02
+    # D02; Lima (14) y Callao (25) van juntos
     dept_map = {
         1.0: "Amazonas", 2.0: "Áncash", 3.0: "Apurímac", 4.0: "Arequipa", 5.0: "Ayacucho",
         6.0: "Cajamarca", 7.0: "Cusco", 8.0: "Huancavelica", 9.0: "Huánuco", 10.0: "Ica",
@@ -192,10 +164,8 @@ def load_and_extract_sbs_dataset(dta_path: Path = None) -> pd.DataFrame:
     }
     df["departamento"] = df_raw["D02"].map(dept_map).fillna("Lima / Callao")
 
-    # Ámbito: PA (1: Urbano, 2: Rural)
     df["ambito"] = df_raw["PA"].map({1.0: "Urbano", 2.0: "Rural"}).fillna("Urbano")
 
-    # Condición Laboral: D10
     def map_condicion_laboral(val):
         if val == 2.0:
             return "Trabajador Independiente / Cuenta propia"
@@ -211,58 +181,52 @@ def load_and_extract_sbs_dataset(dta_path: Path = None) -> pd.DataFrame:
 
     df["condicion_laboral"] = df_raw["D10"].apply(map_condicion_laboral)
 
-    # Informalidad laboral / Thin-file: D05A (RUC) y D05B (Beneficios)
+    # Informal si nunca emite con RUC, no tiene beneficios de ley o es independiente
     es_informal_flag = (
-        (df_raw["D05A"] == 1.0) |  # Nunca emite recibo/factura con RUC
-        (df_raw["D05B"] == 2.0) |  # No recibe beneficios de ley
-        (df_raw["D10"] == 2.0)     # Independiente / cuenta propia
+        (df_raw["D05A"] == 1.0) |
+        (df_raw["D05B"] == 2.0) |
+        (df_raw["D10"] == 2.0)
     )
     df["es_informal"] = np.where(es_informal_flag, "Informal / Sin RUC", "Formalizado / Con RUC o Beneficios")
 
-    # EJE 2: INCLUSIÓN DIGITAL Y DATOS ALTERNATIVOS
-    # P0105: Billetera móvil (Yape, Plin, BIM)
+    # Eje 2: inclusión digital. P0105: conoce o usa Yape/Plin/BIM
     df["adopcion_yape_plin"] = np.where(df_raw["P0105"] == 1.0, "Sí", "No")
 
-    # P0205: Tenencia activa de billetera móvil
+    # P0205: la tiene activa
     df["tiene_billetera_activa"] = np.where(df_raw["P0205"] == 1.0, "Sí", "No")
 
-    # P09_6_Rp: Frecuencia de uso billetera digital (1: Nunca a 4: Siempre)
+    # P09_6_Rp: frecuencia de uso, 1 nunca a 4 siempre
     frec_yape = df_raw["P09_6_Rp"].replace({97: 1, 98: 1, 99: 1}).fillna(1.0)
     df["frecuencia_yape_plin"] = frec_yape.astype(float)
 
-    # S01_5_Rp: Uso del celular para cobros y pagos (1 a 5)
+    # S01_5_Rp: cobra/paga con el celular (1 a 5)
     pago_cel = df_raw["S01_5_Rp"].replace({97: 2, 98: 2, 99: 2}).fillna(2.0)
     df["pago_celular_frecuencia"] = pago_cel.astype(float)
 
-    # D06_6_Rp: Uso WhatsApp (1 a 4)
     wsp = df_raw["D06_6_Rp"].replace({97: 1, 98: 1, 99: 1}).fillna(2.0)
     df["uso_whatsapp"] = wsp.astype(float)
 
-    # D06_13_Rp: Uso Internet (1 a 4)
     net = df_raw["D06_13_Rp"].replace({97: 1, 98: 1, 99: 1}).fillna(2.0)
     df["uso_internet"] = net.astype(float)
 
-    # S01_10_Rp: Preferencia por efectivo vs medios digitales (1 a 5)
+    # S01_10_Rp: "el efectivo es más seguro" (1 a 5)
     pref_efectivo = df_raw["S01_10_Rp"].replace({97: 3, 98: 3, 99: 3}).fillna(3.0)
     df["preferencia_efectivo"] = pref_efectivo.astype(float)
 
-    # S04_4_Rp: Herramientas digitales facilitan gestión (1 a 5)
+    # S04_4_Rp: "las herramientas digitales me facilitan" (1 a 5)
     conf_digital = df_raw["S04_4_Rp"].replace({97: 3, 98: 3, 99: 3}).fillna(3.0)
     df["confianza_herramientas_digitales"] = conf_digital.astype(float)
 
-    # Puntualidad de cuentas y recibos
-    # F02_3_Rp: Guarda dinero para facturas
+    # F02_3_Rp y F02_4_Rp: guarda plata para recibos / anota vencimientos
     df["guarda_dinero_recibos"] = np.where(df_raw["F02_3_Rp"] == 1.0, "Sí", "No")
 
-    # F02_4_Rp: Anota recibos por vencer
     df["anota_recibos_vencer"] = np.where(df_raw["F02_4_Rp"] == 1.0, "Sí", "No")
 
-    # S02_5_Rp: Pago a tiempo de cuentas y deudas (1: Nunca a 5: Siempre)
+    # S02_5_Rp: paga a tiempo, 1 nunca a 5 siempre
     punt_deudas = df_raw["S02_5_Rp"].replace({97: 3, 98: 3, 99: 3}).fillna(4.0)
     df["puntualidad_pago_deudas"] = punt_deudas.astype(float)
 
-    # EJE 3: CAPACIDAD Y COMPORTAMIENTO FINANCIERO
-    # Rango de Ingresos: D13A
+    # Eje 3: capacidad financiera. D13A: rango de ingreso
     def map_rango_ingreso(val):
         if val in [1.0, 2.0]:
             return "Menor a S/ 600"
@@ -278,7 +242,7 @@ def load_and_extract_sbs_dataset(dta_path: Path = None) -> pd.DataFrame:
 
     df["rango_ingreso"] = df_raw["D13A"].apply(map_rango_ingreso)
 
-    # NSE: NSEX (1: A, 2: B, 3: C, 4: D, 5: E)
+    # NSEX: 1 A ... 5 E (A y B se juntan)
     def map_nse(val):
         if val in [1.0, 2.0]:
             return "A/B"
@@ -292,37 +256,33 @@ def load_and_extract_sbs_dataset(dta_path: Path = None) -> pd.DataFrame:
 
     df["nivel_socioeconomico"] = df_raw["NSEX"].apply(map_nse)
 
-    # Regularidad de ingresos: D13 (1: Sí es regular, 2: No)
+    # D13: ingresos regulares
     df["ingresos_estables"] = np.where(df_raw["D13"] == 1.0, "Sí", "No")
 
-    # Presupuesto: F02_1_Rp y F02_2_Rp
     df["planifica_presupuesto"] = np.where(df_raw["F02_1_Rp"] == 1.0, "Sí", "No")
     df["anota_gastos"] = np.where(df_raw["F02_2_Rp"] == 1.0, "Sí", "No")
 
-    # Resiliencia ante imprevistos: F04 (1: Sí sin endeudarse, 2: No)
+    # F04: puede cubrir un imprevisto sin endeudarse
     df["capacidad_afrontar_imprevisto"] = np.where(df_raw["F04"] == 1.0, "Sí", "No")
 
-    # Dificultad para reunir S/ 1,000 de emergencia: C03 (1: Nada difícil a 4: Muy difícil)
+    # C03: dificultad de juntar S/ 1,000, 1 nada difícil a 4
     dif_1000 = df_raw["C03"].replace({97: 3, 98: 3, 99: 3}).fillna(3.0)
     df["dificultad_emergencia_1000"] = dif_1000.astype(float)
 
-    # Meses de cobertura ante desempleo: F13 (1 a 5)
+    # F13: cuánto aguanta si pierde su ingreso (1 a 5)
     desempleo_meses = df_raw["F13"].replace({97: 2, 98: 2, 99: 2}).fillna(2.0)
     df["meses_resiliencia_desempleo"] = desempleo_meses.astype(float)
 
-    # Sobra dinero fin de mes: S02_4_Rp (1 a 5)
     sobra_dinero = df_raw["S02_4_Rp"].replace({97: 2, 98: 2, 99: 2}).fillna(2.0)
     df["sobra_dinero_fin_mes"] = sobra_dinero.astype(float)
 
-    # Ingreso apenas alcanza: S03_6_Rp (1 a 5)
     apenas_alcanza = df_raw["S03_6_Rp"].replace({97: 3, 98: 3, 99: 3}).fillna(3.0)
     df["ingreso_apenas_alcanza"] = apenas_alcanza.astype(float)
 
-    # Percepción de sobreendeudamiento: S01_8_Rp (1 a 5)
     sobreendeudado = df_raw["S01_8_Rp"].replace({97: 2, 98: 2, 99: 2}).fillna(2.0)
     df["percepcion_sobreendeudado"] = sobreendeudado.astype(float)
 
-    # Historial de productos previos
+    # Productos que tiene o tuvo
     df["tiene_cuenta_ahorro"] = np.where(df_raw["P0101"] == 1.0, "Sí", "No")
     df["tiene_tarjeta_credito"] = np.where(df_raw["P0109"] == 1.0, "Sí", "No")
     df["tiene_prestamo_personal"] = np.where(df_raw["P0107"] == 1.0, "Sí", "No")
@@ -330,15 +290,10 @@ def load_and_extract_sbs_dataset(dta_path: Path = None) -> pd.DataFrame:
     df["ha_usado_pandero_junta"] = np.where(df_raw["P0129"] == 1.0, "Sí", "No")
     df["credito_formal_negado"] = np.where(df_raw["P10_9_Rp"] == 1.0, "Sí", "No")
 
-    # INGENIERÍA DE CARACTERÍSTICAS: CÁLCULO DE ÍNDICES SINTÉTICOS
-    df_enriched = add_engineered_features(df)
-
-    return df_enriched
+    return add_engineered_features(df)
 
 
 if __name__ == "__main__":
     df_extracted = load_and_extract_sbs_dataset()
-    print("[OK] Ingestión y feature engineering de la base SBS/CAF 2022 completada.")
-    print(f"     Dimensiones resultantes: {df_extracted.shape}")
-    print(f"     Tasa de morosidad (target): {df_extracted[config.TARGET_COLUMN].mean()*100:.2f}%")
-    print(f"     Columnas extraídas: {list(df_extracted.columns)}")
+    print(f"{df_extracted.shape[0]} filas, {df_extracted.shape[1]} columnas")
+    print(f"mora: {df_extracted[config.TARGET_COLUMN].mean()*100:.2f}%")
