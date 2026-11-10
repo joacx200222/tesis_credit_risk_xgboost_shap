@@ -15,11 +15,32 @@ from src.evaluacion import (
 from src.explicabilidad import cargar_explicador
 
 
+HAY_DTA = config.RUTA_DTA.exists()
+
+
+def cargar_datos():
+    """
+    La base de la encuesta (.dta) no se sube al repo. Si no está (por ejemplo
+    en el CI) se usan train + val + test, que juntos son las mismas 1201 filas.
+    """
+    if HAY_DTA:
+        return cargar_encuesta(config.RUTA_DTA)
+    partes = [pd.read_csv(r) for r in (config.RUTA_TRAIN, config.RUTA_VAL, config.RUTA_TEST)]
+    return pd.concat(partes, ignore_index=True)
+
+
 class TestPipeline(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.df = cargar_encuesta(config.RUTA_DTA)
+        cls.df = cargar_datos()
+
+    @unittest.skipUnless(HAY_DTA, "falta el .dta de la encuesta")
+    def test_particion_coincide_con_la_encuesta(self):
+        partes = pd.concat([pd.read_csv(r) for r in (config.RUTA_TRAIN, config.RUTA_VAL, config.RUTA_TEST)])
+        self.assertEqual(len(partes), len(self.df))
+        self.assertEqual(int(partes[config.COLUMNA_OBJETIVO].sum()), int(self.df[config.COLUMNA_OBJETIVO].sum()))
+        self.assertEqual(sorted(partes.columns), sorted(self.df.columns))
 
     def test_estructura_encuesta(self):
         self.assertEqual(len(self.df), 1201)
