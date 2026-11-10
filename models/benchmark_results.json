@@ -1,24 +1,48 @@
 {
+  "hiperparametros_optimizados": true,
+  "comparacion_base_vs_optimizado": [
+    {
+      "Modelo": "Regresión Logística",
+      "KS base (%)": 29.95,
+      "KS optimizado (%)": 28.28,
+      "AUC base": 0.6799,
+      "AUC optimizado": 0.667
+    },
+    {
+      "Modelo": "Random Forest",
+      "KS base (%)": 35.78,
+      "KS optimizado (%)": 32.43,
+      "AUC base": 0.724,
+      "AUC optimizado": 0.7064
+    },
+    {
+      "Modelo": "XGBoost",
+      "KS base (%)": 33.67,
+      "KS optimizado (%)": 44.09,
+      "AUC base": 0.7134,
+      "AUC optimizado": 0.7557
+    }
+  ],
   "modelos": {
     "Regresion_Logistica": {
       "nombre_mostrar": "Regresión Logística (Scorecard Tradicional)",
       "tipo": "Paramétrico Lineal",
       "metricas": {
         "threshold": 0.5,
-        "auc_roc": 0.6799,
-        "pr_auc": 0.5226,
-        "ks_stat_pct": 29.95,
-        "ks_optimal_cutoff": 0.5282,
-        "f1_score": 0.4906,
-        "recall_morosos": 0.5652,
-        "precision_morosos": 0.4333,
-        "specificity": 0.7481,
-        "accuracy": 0.7017,
+        "auc_roc": 0.667,
+        "pr_auc": 0.5116,
+        "ks_stat_pct": 28.28,
+        "ks_optimal_cutoff": 0.4718,
+        "f1_score": 0.4404,
+        "recall_morosos": 0.5217,
+        "precision_morosos": 0.381,
+        "specificity": 0.7111,
+        "accuracy": 0.663,
         "confusion_matrix": {
-          "TP": 26,
-          "FP": 34,
-          "TN": 101,
-          "FN": 20
+          "TP": 24,
+          "FP": 39,
+          "TN": 96,
+          "FN": 22
         }
       }
     },
@@ -27,20 +51,20 @@
       "tipo": "Ensamble Bagging",
       "metricas": {
         "threshold": 0.5,
-        "auc_roc": 0.724,
-        "pr_auc": 0.4991,
-        "ks_stat_pct": 35.78,
-        "ks_optimal_cutoff": 0.4826,
-        "f1_score": 0.4835,
-        "recall_morosos": 0.4783,
-        "precision_morosos": 0.4889,
-        "specificity": 0.8296,
-        "accuracy": 0.7403,
+        "auc_roc": 0.7064,
+        "pr_auc": 0.5022,
+        "ks_stat_pct": 32.43,
+        "ks_optimal_cutoff": 0.4344,
+        "f1_score": 0.4466,
+        "recall_morosos": 0.5,
+        "precision_morosos": 0.4035,
+        "specificity": 0.7481,
+        "accuracy": 0.6851,
         "confusion_matrix": {
-          "TP": 22,
-          "FP": 23,
-          "TN": 112,
-          "FN": 24
+          "TP": 23,
+          "FP": 34,
+          "TN": 101,
+          "FN": 23
         }
       }
     },
@@ -49,20 +73,20 @@
       "tipo": "Gradient Boosting Decision Trees (GBDT)",
       "metricas": {
         "threshold": 0.5,
-        "auc_roc": 0.7134,
-        "pr_auc": 0.4354,
-        "ks_stat_pct": 33.67,
-        "ks_optimal_cutoff": 0.2426,
-        "f1_score": 0.3678,
-        "recall_morosos": 0.3478,
-        "precision_morosos": 0.3902,
-        "specificity": 0.8148,
-        "accuracy": 0.6961,
+        "auc_roc": 0.7557,
+        "pr_auc": 0.4875,
+        "ks_stat_pct": 44.09,
+        "ks_optimal_cutoff": 0.3774,
+        "f1_score": 0.4854,
+        "recall_morosos": 0.5435,
+        "precision_morosos": 0.4386,
+        "specificity": 0.763,
+        "accuracy": 0.7072,
         "confusion_matrix": {
-          "TP": 16,
-          "FP": 25,
-          "TN": 110,
-          "FN": 30
+          "TP": 25,
+          "FP": 32,
+          "TN": 103,
+          "FN": 21
         }
       }
     }
@@ -70,27 +94,27 @@
   "resumen_comparativo": [
     {
       "Modelo": "Regresión Logística (Línea Base)",
-      "AUC-ROC": 0.6799,
-      "PR-AUC": 0.5226,
-      "KS-Statistic (%)": 29.95,
-      "F1-Score": 0.4906,
-      "Recall Morosos": 0.5652
+      "AUC-ROC": 0.667,
+      "PR-AUC": 0.5116,
+      "KS-Statistic (%)": 28.28,
+      "F1-Score": 0.4404,
+      "Recall Morosos": 0.5217
     },
     {
       "Modelo": "Random Forest (Línea Base)",
-      "AUC-ROC": 0.724,
-      "PR-AUC": 0.4991,
-      "KS-Statistic (%)": 35.78,
-      "F1-Score": 0.4835,
-      "Recall Morosos": 0.4783
+      "AUC-ROC": 0.7064,
+      "PR-AUC": 0.5022,
+      "KS-Statistic (%)": 32.43,
+      "F1-Score": 0.4466,
+      "Recall Morosos": 0.5
     },
     {
       "Modelo": "XGBoost (Modelo Propuesto SBS)",
-      "AUC-ROC": 0.7134,
-      "PR-AUC": 0.4354,
-      "KS-Statistic (%)": 33.67,
-      "F1-Score": 0.3678,
-      "Recall Morosos": 0.3478
+      "AUC-ROC": 0.7557,
+      "PR-AUC": 0.4875,
+      "KS-Statistic (%)": 44.09,
+      "F1-Score": 0.4854,
+      "Recall Morosos": 0.5435
     }
   ]
 }

@@ -1,0 +1,49 @@
+{
+  "metodo": "Optuna TPE + validación cruzada estratificada de 5 folds sobre train",
+  "metrica_objetivo": "AUC promedio de validación cruzada",
+  "random_state": 42,
+  "modelos": {
+    "XGBoost": {
+      "best_params": {
+        "n_estimators": 300,
+        "max_depth": 2,
+        "learning_rate": 0.027821804807197696,
+        "subsample": 0.8512149662754224,
+        "colsample_bytree": 0.835437530112235,
+        "min_child_weight": 1,
+        "gamma": 0.43139106790535237,
+        "reg_alpha": 0.11605292691728815,
+        "reg_lambda": 0.03271871897266154
+      },
+      "cv_auc": 0.6854,
+      "cv_ks_pct": 30.32,
+      "baseline_cv_auc": 0.6491,
+      "baseline_cv_ks_pct": 23.81,
+      "n_trials": 100
+    },
+    "Random_Forest": {
+      "best_params": {
+        "n_estimators": 400,
+        "max_depth": 3,
+        "min_samples_split": 13,
+        "min_samples_leaf": 3,
+        "max_features": 0.5
+      },
+      "cv_auc": 0.6668,
+      "cv_ks_pct": 29.37,
+      "baseline_cv_auc": 0.6589,
+      "baseline_cv_ks_pct": 26.35,
+      "n_trials": 60
+    },
+    "Regresion_Logistica": {
+      "best_params": {
+        "C": 0.024661008911604426
+      },
+      "cv_auc": 0.6353,
+      "cv_ks_pct": 23.81,
+      "baseline_cv_auc": 0.6281,
+      "baseline_cv_ks_pct": 23.65,
+      "n_trials": 30
+    }
+  }
+}

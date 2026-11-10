@@ -105,7 +105,7 @@ def create_sample_profiles():
             "meses_resiliencia_desempleo": 2,
             "sobra_dinero_fin_mes": 2,
             "ingreso_apenas_alcanza": 3,
-            "percepcion_sobreendeudado": 2,
+            "percepcion_sobreendeudado": 1,
             "tiene_cuenta_ahorro": "Sí",
             "tiene_tarjeta_credito": "No",
             "tiene_prestamo_personal": "No",
@@ -248,7 +248,7 @@ def run_streamlit_app():
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Marco Regulatorio")
-    st.sidebar.caption("Resolución SBS N.° 3780-2021 — Reglamento de Gestión del Riesgo de Crédito")
+    st.sidebar.caption("Resolución SBS N.° 3780-2011 — Reglamento de la Gestión de Riesgo de Crédito")
     st.sidebar.caption("Severidad de Pérdida (LGD): 50% (Estándar normativo microfinanciero)")
     st.sidebar.caption("Modelo: XGBoost Cost-Sensitive + TreeSHAP")
     st.sidebar.caption("Base: Encuesta SBS/CAF 2022")
@@ -434,7 +434,7 @@ def run_streamlit_app():
                 for r_name, r_val in eval_result["ratios_clave"].items():
                     st.write(f"- **{r_name}:** `{r_val}`")
 
-                st.markdown("##### Razones de Acción Adversa (Res. SBS N.° 3780-2021)")
+                st.markdown("##### Razones de Acción Adversa (Ley N.° 32294)")
                 st.caption("Factores prioritarios que incrementaron el riesgo en la decisión algorítmica:")
                 for i, r_text in enumerate(eval_result["razones_accion_adversa_sbs"], 1):
                     st.markdown(f"**{i}.** {r_text}")
@@ -491,11 +491,16 @@ def run_streamlit_app():
             df_bench = pd.DataFrame(benchmark_data["resumen_comparativo"])
             st.dataframe(df_bench, use_container_width=True)
 
+            if "comparacion_base_vs_optimizado" in benchmark_data:
+                st.markdown("##### Hiperparámetros base vs optimizados con Optuna (test):")
+                st.dataframe(pd.DataFrame(benchmark_data["comparacion_base_vs_optimizado"]), use_container_width=True)
+
             st.markdown("##### Cumplimiento de Estándares SBS:")
             st.markdown(
                 r"""
-                - **Estadístico Kolmogorov-Smirnov (KS, calculado por deciles de riesgo):** XGBoost alcanza un **KS de 33.67%**, superando el piso mínimo de **30%**; la Regresión Logística se queda en 29.95%.
-                - **Capacidad de Discriminación (AUC-ROC):** XGBoost logra un **AUC de 0.7134**, frente a 0.6799 del scorecard lineal tradicional.
+                - **Estadístico Kolmogorov-Smirnov (KS, calculado por deciles de riesgo):** XGBoost alcanza un **KS de 44.09%**, superando el piso de referencia de **30%**; Random Forest llega a 32.43% y la Regresión Logística se queda en 28.28%.
+                - **Capacidad de Discriminación (AUC-ROC):** XGBoost logra un **AUC de 0.7557**, frente a 0.7064 de Random Forest y 0.6670 del scorecard lineal tradicional.
+                - **Optimización de hiperparámetros:** los tres modelos se ajustaron con Optuna (búsqueda bayesiana TPE) y validación cruzada estratificada de 5 folds solo sobre el set de entrenamiento; el set de prueba no participó en la búsqueda.
                 - **Ponderación Sensible al Costo (`scale_pos_weight` ≈ 3.0):** Calculada sobre el set de entrenamiento (630 cumplidores / 210 morosos), compensa el desbalance de ~25% de mora y evita el sesgo hacia aprobar.
                 """
             )

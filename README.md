@@ -7,15 +7,17 @@
 Pipeline de aprendizaje supervisado que estima la probabilidad de mora (PD) de solicitantes de microcrédito, incluidos prestatarios *thin-file* (sin historial en centrales de riesgo), y explica cada decisión. Resuelve dos limitaciones del scoring tradicional:
 
 1. **Exclusión del thin-file:** usa variables alternativas de la **Encuesta Nacional de Capacidades Financieras SBS/CAF 2022** (1,201 encuestados, 24 departamentos): adopción de billeteras móviles (Yape/Plin/BIM), hábitos de pago de recibos, resiliencia ante imprevistos y vulnerabilidad de liquidez.
-2. **Caja negra:** integra **TreeSHAP** para explicar la decisión a nivel global (portafolio) y local (solicitud individual), y traducir los factores de riesgo en razones de acción adversa conforme a la Resolución SBS N.° 3780-2021.
+2. **Caja negra:** integra **TreeSHAP** para explicar la decisión a nivel global (portafolio) y local (solicitud individual), y traducir los factores de riesgo en razones de acción adversa que permiten informar los motivos de denegación que exige la Ley N.° 32294 (2025).
 
 ## Resultados (conjunto de prueba independiente, 181 registros)
 
 | Modelo | AUC-ROC | KS por deciles (%) | ¿KS ≥ 30%? |
 | :--- | :---: | :---: | :---: |
-| Regresión Logística (scorecard tradicional) | 0.6799 | 29.95 | No |
-| Random Forest | 0.7240 | 35.78 | Sí |
-| **XGBoost sensible al costo (propuesto)** | **0.7134** | **33.67** | **Sí** |
+| Regresión Logística (scorecard tradicional) | 0.6670 | 28.28 | No |
+| Random Forest | 0.7064 | 32.43 | Sí |
+| **XGBoost sensible al costo (propuesto)** | **0.7557** | **44.09** | **Sí** |
+
+Los tres modelos usan hiperparámetros optimizados con Optuna (validación cruzada de 5 folds sobre train). Con los hiperparámetros base fijos, los resultados en test eran: Regresión Logística 0.6799 / 29.95%, Random Forest 0.7240 / 35.78% y XGBoost 0.7134 / 33.67%. La optimización mejoró a XGBoost y bajó levemente a los otros dos en test, aunque los tres mejoraron en validación cruzada.
 
 Detalle completo (PR-AUC, F1, recall, matriz de confusión) en `models/benchmark_results.json`. Inferencia + explicación TreeSHAP: ~30–50 ms por solicitud.
 
@@ -30,12 +32,14 @@ tesis_credit_risk_xgboost_shap/
 ├── models/
 │   ├── preprocessor.json                          # Preprocesador ajustado (94 variables de salida)
 │   ├── xgboost_credit_model.{json,joblib}         # Modelo XGBoost serializado
-│   ├── benchmark_results.json                     # Comparativa de los 3 modelos
+│   ├── best_params.json                           # Mejores hiperparámetros encontrados por Optuna
+│   ├── benchmark_results.json                     # Comparativa de los 3 modelos (base vs optimizado)
 │   └── shap_beeswarm.png                          # Explicabilidad global
 ├── src/
 │   ├── config.py                 # Rutas, variables, hiperparámetros y política de crédito
 │   ├── feature_engineering.py    # Ingesta del .dta, variable objetivo y 4 índices sintéticos
 │   ├── data_preprocessing.py     # Imputación, escalado robusto, One-Hot y partición estratificada
+│   ├── hyperparameter_tuning.py  # Optuna (TPE) + validación cruzada estratificada de 5 folds
 │   ├── model_training.py         # Regresión Logística vs Random Forest vs XGBoost
 │   ├── model_evaluation.py       # AUC-ROC, PR-AUC, KS, F1, pérdida esperada, score y decisión
 │   ├── explainability.py         # TreeSHAP, razones de acción adversa y dictamen
@@ -52,9 +56,9 @@ tesis_credit_risk_xgboost_shap/
 | 1. Comprensión del negocio | `config.py` | Piso KS ≥ 30%, LGD = 50%, política: PD ≤ 0.30 aprueba, ≤ 0.45 revisión manual, > 0.45 rechaza. |
 | 2. Comprensión de los datos | `feature_engineering.py` | Lee el `.dta` oficial y mapea las preguntas del cuestionario a 37 variables en 3 ejes. |
 | 3. Preparación de los datos | `feature_engineering.py`, `data_preprocessing.py` | Variable objetivo, 4 índices, imputación por mediana/moda, escalado mediana/IQR, One-Hot (94 variables) y partición estratificada 70/15/15. |
-| 4. Modelado | `model_training.py` | XGBoost (profundidad 4, L1 = 0.3, L2 = 1.5, γ = 0.15) con `scale_pos_weight` = negativos/positivos de train (≈ 3.0), frente a Regresión Logística y Random Forest balanceados. |
+| 4. Modelado | `hyperparameter_tuning.py`, `model_training.py` | Optimización de hiperparámetros de los 3 modelos con Optuna (búsqueda bayesiana TPE; XGBoost 100 intentos, Random Forest 60, Regresión Logística 30), maximizando el AUC promedio de una validación cruzada estratificada de 5 folds solo sobre train. Luego se entrena XGBoost con `scale_pos_weight` = negativos/positivos de train (≈ 3.0) frente a Regresión Logística y Random Forest balanceados. |
 | 5. Evaluación | `model_evaluation.py`, `explainability.py` | Métricas en el set de prueba y descomposición TreeSHAP. |
-| 6. Despliegue | `app.py` | Originación individual, explicabilidad global, benchmark y marco normativo. |
+| 6. Despliegue | `app.py` | Originación individual, explicabilidad global y benchmark. |
 
 ### Variable objetivo (mora)
 
@@ -86,7 +90,8 @@ venv\Scripts\activate            # Windows  (Linux/macOS: source venv/bin/activa
 pip install -r requirements.txt
 
 python src/data_preprocessing.py # Ingesta del .dta, índices, partición y preprocesador (~4 s)
-python src/model_training.py     # Entrena y compara los 3 modelos (~8 s)
+python src/hyperparameter_tuning.py  # Búsqueda Optuna + CV 5-fold (~10 min; genera models/best_params.json)
+python src/model_training.py     # Entrena y compara los 3 modelos, base vs optimizado (~10 s)
 python src/explainability.py     # Genera el beeswarm global y las estadísticas SHAP
 
 python -m unittest discover tests -v
@@ -103,11 +108,14 @@ docker run -p 8501:8501 credit-risk-xgboost-shap
 ## Referencias principales
 
 - Chen, T., & Guestrin, C. (2016). XGBoost: A scalable tree boosting system. *Proceedings of the 22nd ACM SIGKDD*, 785–794.
+- Akiba, T., Sano, S., Yanase, T., Ohta, T., & Koyama, M. (2019). Optuna: A next-generation hyperparameter optimization framework. *Proceedings of the 25th ACM SIGKDD*, 2623–2631. https://doi.org/10.1145/3292500.3330701
 - Lundberg, S. M., & Lee, S.-I. (2017). A unified approach to interpreting model predictions. *Advances in Neural Information Processing Systems*, 30.
 - Lundberg, S. M., et al. (2020). From local explanations to global understanding with explainable AI for trees. *Nature Machine Intelligence*, 2(1), 56–67.
 - Bussmann, N., Giudici, P., Marinelli, D., & Papenbrock, J. (2021). Explainable machine learning in credit risk management. *Computational Economics*, 57(1), 203–216.
 - Elkan, C. (2001). The foundations of cost-sensitive learning. *IJCAI*, 973–978.
 - He, H., & Garcia, E. A. (2009). Learning from imbalanced data. *IEEE Transactions on Knowledge and Data Engineering*, 21(9), 1263–1284.
 - Shapley, L. S. (1953). A value for n-person games. *Contributions to the Theory of Games*, 2, 307–317.
-- Superintendencia de Banca, Seguros y AFP. (2021). *Resolución SBS N.° 3780-2021*.
+- Superintendencia de Banca, Seguros y AFP. (2011). *Resolución SBS N.° 3780-2011: Reglamento de la Gestión de Riesgo de Crédito* (y modificatorias).
+- Congreso de la República del Perú. (2025). *Ley N.° 32294*, que modifica la Ley N.° 28587 para obligar a informar los motivos de denegatoria de créditos.
+- Superintendencia de Banca, Seguros y AFP. (2025). *Resolución SBS N.° 01689-2025*.
 - SBS & CAF. (2022). *Encuesta Nacional de Capacidades Financieras del Perú 2022*.

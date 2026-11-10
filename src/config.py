@@ -19,6 +19,7 @@ PREPROCESSOR_PATH = MODELS_DIR / "preprocessor.joblib"
 XGBOOST_MODEL_PATH = MODELS_DIR / "xgboost_credit_model.joblib"
 XGBOOST_MODEL_JSON = MODELS_DIR / "xgboost_credit_model.json"
 BENCHMARK_RESULTS_PATH = MODELS_DIR / "benchmark_results.json"
+BEST_PARAMS_PATH = MODELS_DIR / "best_params.json"
 SHAP_SUMMARY_PATH = MODELS_DIR / "shap_summary_stats.joblib"
 
 # 2. Parámetros generales y reproducibilidad
@@ -118,7 +119,7 @@ ALL_CATEGORICAL_FEATURES = (
 CATEGORICAL_FEATURES = ALL_CATEGORICAL_FEATURES
 ALL_MODEL_FEATURES = ALL_NUMERICAL_FEATURES + ALL_CATEGORICAL_FEATURES
 
-# 4. Parámetros financieros y scorecard (Resolución SBS N.° 3780-2021)
+# 4. Parámetros financieros y scorecard (Resolución SBS N.° 3780-2011)
 SCORE_MIN = 0
 SCORE_MAX = 1000
 
@@ -171,7 +172,8 @@ OPCIONES_RANGO_INGRESO = [
 
 OPCIONES_NSE = ["A/B", "C", "D", "E"]
 
-# 5. Hiperparámetros optimizados XGBoost
+# 5. Hiperparámetros base (punto de partida fijo; los optimizados los busca
+#    src/hyperparameter_tuning.py y se guardan en models/best_params.json)
 XGBOOST_DEFAULT_PARAMS = {
     "n_estimators": 180,
     "max_depth": 4,
@@ -187,3 +189,22 @@ XGBOOST_DEFAULT_PARAMS = {
     "random_state": RANDOM_STATE,
     "n_jobs": -1,
 }
+
+RF_DEFAULT_PARAMS = {
+    "n_estimators": 150,
+    "max_depth": 5,
+    "min_samples_split": 5,
+    "class_weight": "balanced",
+    "random_state": RANDOM_STATE,
+    "n_jobs": -1,
+}
+
+LOGREG_DEFAULT_PARAMS = {
+    "class_weight": "balanced",
+    "max_iter": 1000,
+    "random_state": RANDOM_STATE,
+}
+
+# 6. Optimización de hiperparámetros (Optuna + validación cruzada estratificada)
+CV_FOLDS = 5
+OPTUNA_TRIALS = {"XGBoost": 100, "Random_Forest": 60, "Regresion_Logistica": 30}

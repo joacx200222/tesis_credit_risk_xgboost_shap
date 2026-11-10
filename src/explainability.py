@@ -94,7 +94,7 @@ class CreditRiskExplainer:
     """
     Motor de explicabilidad algorítmica para el modelo de riesgo crediticio SBS.
     Implementa TreeSHAP con soporte para beeswarm global, waterfall local y
-    dictamen auditable conforme a la Resolución SBS N.° 3780-2021.
+    dictamen auditable que permite informar los motivos de denegación (Ley N.° 32294).
     """
 
     def __init__(
@@ -192,7 +192,7 @@ class CreditRiskExplainer:
         # Factores de riesgo (aumentan riesgo: SHAP positivo)
         factores_riesgo = df_contribs[df_contribs["shap_value"] > 0].head(5).to_dict(orient="records")
 
-        # 3. Extracción de las 3 Razones Principales de Acción Adversa (SBS Res. 3780-2021)
+        # 3. Extracción de las 3 Razones Principales de Acción Adversa (Ley N.° 32294)
         adverse_reasons = []
         for item in factores_riesgo:
             feat = item["feature_raw"]
@@ -271,7 +271,7 @@ class CreditRiskExplainer:
             recomendaciones.append("Riesgo moderado. Requiere verificación de ingresos independientes y aval o garantía líquida.")
             recomendaciones.append("Comprobar extracto de billeteras digitales (Yape/Plin) de los últimos 3 meses.")
         else:
-            recomendaciones.append("Denegación fundamentada bajo Resolución SBS N.° 3780-2021.")
+            recomendaciones.append("Motivos de denegación disponibles para el solicitante (Ley N.° 32294).")
             recomendaciones.append(f"Motivo prioritario: {adverse_reasons[0]}")
             recomendaciones.append("Recomendar regularización de cuentas de servicios y fomento del ahorro formal previo a una nueva postulación.")
 
@@ -310,7 +310,7 @@ class CreditRiskExplainer:
 
         fig = plt.figure(figsize=(9, 5.5), dpi=100)
         shap.plots.waterfall(explanation, max_display=max_display, show=False)
-        plt.title(f"Explicabilidad Local TreeSHAP (Resolución SBS N.° 3780-2021)", fontsize=11, fontweight="bold", pad=12)
+        plt.title(f"Explicabilidad Local TreeSHAP (Ley N.° 32294)", fontsize=11, fontweight="bold", pad=12)
         plt.tight_layout()
         return fig
 
@@ -331,7 +331,7 @@ def generate_and_save_artifacts():
     X_test = explainer.preprocessor.transform(df_test)
     shap_matrix = explainer.compute_local_shap(X_test)
 
-    friendly_names = [FEATURE_FRIENDLY_NAMES.get(f, f) for f in explainer.feature_names]
+    friendly_names = [FEATURE_FRIENDLY_NAMES.get(f, f.replace("_", " ").title()) for f in explainer.feature_names]
 
     # 1. Beeswarm Summary Plot
     plt.figure(figsize=(10, 6), dpi=120)
@@ -342,6 +342,12 @@ def generate_and_save_artifacts():
         max_display=15,
         show=False
     )
+    # Etiquetas en español (shap las genera en inglés)
+    fig = plt.gcf()
+    fig.axes[0].set_xlabel("Valor SHAP (impacto en la log-odds de mora)")
+    colorbar = fig.axes[-1]
+    colorbar.set_ylabel("Valor de la variable")
+    colorbar.set_yticklabels(["Bajo", "Alto"])
     plt.title("Ranking Global de Variables - TreeSHAP (Base Empírica SBS/CAF 2022)", fontsize=12, fontweight="bold")
     plt.tight_layout()
     beeswarm_path = config.MODELS_DIR / "shap_beeswarm.png"

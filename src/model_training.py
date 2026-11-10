@@ -15,12 +15,14 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
 from src.data_preprocessing import CreditDataPreprocessor
 from src.model_evaluation import compute_classification_metrics
+from src.hyperparameter_tuning import load_best_params
 
 
 class CreditRiskXGBoostWrapper:
     """
     Wrapper del modelo XGBoost con soporte para serialización en .joblib y .json,
-    pesos sensibles al costo (scale_pos_weight = 2.99) e inferencia transparente.
+    pesos sensibles al costo (scale_pos_weight = negativos / positivos de train ≈ 3.0)
+    e inferencia transparente.
     """
     def __init__(self, params: Dict[str, Any] = None):
         self.params = dict(params or config.XGBOOST_DEFAULT_PARAMS)
@@ -156,30 +158,32 @@ def train_and_evaluate_all_models() -> Dict[str, Any]:
     print(f"Dimensiones de entrenamiento: {X_train.shape} | Desbalance: {np.mean(y_train)*100:.2f}% mora")
     print(f"Dimensiones de prueba:        {X_test.shape}  | Desbalance: {np.mean(y_test)*100:.2f}% mora")
 
-    # 1. Modelo Base: Regresión Logística con balanceo de clases
-    log_reg = LogisticRegression(class_weight="balanced", max_iter=1000, random_state=config.RANDOM_STATE)
-    log_reg.fit(X_train, y_train)
-    y_prob_log = log_reg.predict_proba(X_test)[:, 1]
-    metrics_log = compute_classification_metrics(y_test, y_prob_log, threshold=0.50)
+    # Hiperparámetros optimizados con Optuna (src/hyperparameter_tuning.py); {} si no se ha corrido
+    best_log = load_best_params("Regresion_Logistica")
+    best_rf = load_best_params("Random_Forest")
+    best_xgb = load_best_params("XGBoost")
+    optimizado = bool(best_log and best_rf and best_xgb)
+    print(f"Hiperparámetros: {'optimizados con Optuna' if optimizado else 'base (sin optimizar)'}")
 
-    # 2. Modelo Base: Random Forest Classifier
-    rf_clf = RandomForestClassifier(
-        n_estimators=150,
-        max_depth=5,
-        min_samples_split=5,
-        class_weight="balanced",
-        random_state=config.RANDOM_STATE,
-        n_jobs=-1
-    )
-    rf_clf.fit(X_train, y_train)
-    y_prob_rf = rf_clf.predict_proba(X_test)[:, 1]
-    metrics_rf = compute_classification_metrics(y_test, y_prob_rf, threshold=0.50)
+    def evaluar(modelo):
+        return compute_classification_metrics(y_test, modelo.predict_proba(X_test)[:, 1], threshold=0.50)
 
-    # 3. Modelo Propuesto: XGBoost con Cost-Sensitive Weighting y regularización gamma/lambda
-    xgb_wrapper = CreditRiskXGBoostWrapper()
+    # 1. Regresión Logística con balanceo de clases (base y optimizada)
+    log_reg_base = LogisticRegression(**config.LOGREG_DEFAULT_PARAMS).fit(X_train, y_train)
+    log_reg = LogisticRegression(**{**config.LOGREG_DEFAULT_PARAMS, **best_log}).fit(X_train, y_train)
+    metrics_log_base, metrics_log = evaluar(log_reg_base), evaluar(log_reg)
+
+    # 2. Random Forest balanceado (base y optimizado)
+    rf_base = RandomForestClassifier(**config.RF_DEFAULT_PARAMS).fit(X_train, y_train)
+    rf_clf = RandomForestClassifier(**{**config.RF_DEFAULT_PARAMS, **best_rf}).fit(X_train, y_train)
+    metrics_rf_base, metrics_rf = evaluar(rf_base), evaluar(rf_clf)
+
+    # 3. Modelo Propuesto: XGBoost sensible al costo (base y optimizado)
+    xgb_base = CreditRiskXGBoostWrapper()
+    xgb_base.fit(X_train, y_train, X_val=X_val, y_val=y_val, feature_names=feature_names)
+    xgb_wrapper = CreditRiskXGBoostWrapper(params={**config.XGBOOST_DEFAULT_PARAMS, **best_xgb})
     xgb_wrapper.fit(X_train, y_train, X_val=X_val, y_val=y_val, feature_names=feature_names)
-    y_prob_xgb = xgb_wrapper.predict_proba(X_test)[:, 1]
-    metrics_xgb = compute_classification_metrics(y_test, y_prob_xgb, threshold=0.50)
+    metrics_xgb_base, metrics_xgb = evaluar(xgb_base), evaluar(xgb_wrapper)
 
     # Guardar modelo principal serializado
     xgb_wrapper.save(config.XGBOOST_MODEL_JSON)
@@ -188,6 +192,21 @@ def train_and_evaluate_all_models() -> Dict[str, Any]:
 
     # Consolidar resultados comparativos (Benchmark institucional SBS)
     benchmark_results = {
+        "hiperparametros_optimizados": optimizado,
+        "comparacion_base_vs_optimizado": [
+            {
+                "Modelo": nombre,
+                "KS base (%)": base["ks_stat_pct"],
+                "KS optimizado (%)": opt["ks_stat_pct"],
+                "AUC base": base["auc_roc"],
+                "AUC optimizado": opt["auc_roc"],
+            }
+            for nombre, base, opt in [
+                ("Regresión Logística", metrics_log_base, metrics_log),
+                ("Random Forest", metrics_rf_base, metrics_rf),
+                ("XGBoost", metrics_xgb_base, metrics_xgb),
+            ]
+        ],
         "modelos": {
             "Regresion_Logistica": {
                 "nombre_mostrar": "Regresión Logística (Scorecard Tradicional)",
@@ -242,6 +261,10 @@ def train_and_evaluate_all_models() -> Dict[str, Any]:
     print("--------------------------------------------------------------------------")
     for r in benchmark_results["resumen_comparativo"]:
         print(f"{r['Modelo']:<30} | {r['AUC-ROC']:<9.4f} | {r['PR-AUC']:<8.4f} | {r['KS-Statistic (%)']:<8.2f} | {r['Recall Morosos']:<8.4f}")
+    print("==========================================================================")
+    print(f"{'Base vs optimizado (test)':<30} | {'KS base':<8} | {'KS opt':<8} | {'AUC base':<8} | {'AUC opt':<8}")
+    for r in benchmark_results["comparacion_base_vs_optimizado"]:
+        print(f"{r['Modelo']:<30} | {r['KS base (%)']:<8.2f} | {r['KS optimizado (%)']:<8.2f} | {r['AUC base']:<8.4f} | {r['AUC optimizado']:<8.4f}")
     print("==========================================================================")
     print(f"[OK] Modelo XGBoost serializado en:")
     print(f"     - {config.XGBOOST_MODEL_JSON}")
