@@ -6,17 +6,17 @@ import matplotlib.pyplot as plt
 import shap
 
 from src import config
-from src.data_preprocessing import CreditDataPreprocessor
-from src.model_training import CreditRiskXGBoostWrapper
-from src.feature_engineering import add_engineered_features
-from src.model_evaluation import (
-    calculate_expected_loss,
-    convert_pd_to_credit_score,
-    get_credit_decision
+from src.preprocesamiento import Preprocesador
+from src.entrenamiento import ModeloXGBoost
+from src.ingenieria_variables import agregar_indices
+from src.evaluacion import (
+    perdida_esperada,
+    pd_a_score,
+    decision_crediticia
 )
 
 
-FEATURE_FRIENDLY_NAMES = {
+NOMBRES_VARIABLES = {
     "indice_inclusion_digital": "Índice de Inclusión Digital (Yape/Plin)",
     "indice_resiliencia_financiera": "Resiliencia ante Gastos Imprevistos",
     "indice_vulnerabilidad_liquidez": "Vulnerabilidad Financiera Cotidiana",
@@ -66,7 +66,7 @@ FEATURE_FRIENDLY_NAMES = {
 
 
 # Texto que se le muestra al solicitante cuando esa variable empuja hacia la mora
-ADVERSE_ACTION_REASON_MAP = {
+MOTIVOS_DENEGACION = {
     "indice_vulnerabilidad_liquidez": "Insuficiencia habitual de ingresos familiares reportada en el hogar.",
     "indice_resiliencia_financiera": "Incapacidad para absorber gastos de emergencia sin recurrir a endeudamiento adicional.",
     "indice_inclusion_digital": "Falta de historial transaccional demostrable en medios de pago digitales (Yape/Plin).",
@@ -85,157 +85,157 @@ ADVERSE_ACTION_REASON_MAP = {
 }
 
 
-class CreditRiskExplainer:
+class ExplicadorSHAP:
     """TreeSHAP sobre el XGBoost: explicación local, importancia global y gráficos."""
 
     def __init__(
         self,
-        model_wrapper: CreditRiskXGBoostWrapper,
-        preprocessor: CreditDataPreprocessor
+        modelo: ModeloXGBoost,
+        preprocesador: Preprocesador
     ):
-        self.model_wrapper = model_wrapper
-        self.preprocessor = preprocessor
-        self.feature_names = preprocessor.get_feature_names_out()
+        self.modelo = modelo
+        self.preprocesador = preprocesador
+        self.nombres_variables = preprocesador.get_feature_names_out()
 
-        native_model = model_wrapper.model
-        self.tree_explainer = shap.TreeExplainer(native_model)
+        nativo = modelo.xgb
+        self.tree_explainer = shap.TreeExplainer(nativo)
 
         # Algunas versiones de shap con xgboost >= 2 leen mal el base_score y dan
         # expected_value = 0. Se despeja de f(x) = E[f(x)] + sum(phi) en un punto cualquiera.
-        x_ref = np.zeros((1, len(self.feature_names)))
-        margin_ref = float(native_model.predict(x_ref, output_margin=True)[0])
-        self.expected_value = margin_ref - float(np.sum(self.compute_local_shap(x_ref)[0]))
+        x_ref = np.zeros((1, len(self.nombres_variables)))
+        margen_ref = float(nativo.predict(x_ref, output_margin=True)[0])
+        self.valor_base = margen_ref - float(np.sum(self.shap_local(x_ref)[0]))
 
-    def compute_local_shap(self, X_transformed: np.ndarray) -> np.ndarray:
+    def shap_local(self, X: np.ndarray) -> np.ndarray:
         """Matriz (n, variables) de valores SHAP en log-odds."""
-        raw_shap = self.tree_explainer.shap_values(X_transformed)
-        if isinstance(raw_shap, list):
-            return raw_shap[1]  # versiones viejas de shap devuelven una lista por clase
-        return raw_shap
+        valores = self.tree_explainer.shap_values(X)
+        if isinstance(valores, list):
+            return valores[1]  # versiones viejas de shap devuelven una lista por clase
+        return valores
 
-    def get_global_feature_importance(self, df_sample: pd.DataFrame = None, top_n: int = 15) -> pd.DataFrame:
+    def importancia_global(self, df_muestra: pd.DataFrame = None, top: int = 15) -> pd.DataFrame:
         """Promedio de |SHAP| por variable (por defecto sobre test)."""
-        if df_sample is None:
-            df_sample = pd.read_csv(config.PROCESSED_TEST_PATH)
+        if df_muestra is None:
+            df_muestra = pd.read_csv(config.RUTA_TEST)
 
-        X_sample = self.preprocessor.transform(df_sample)
-        shap_matrix = self.compute_local_shap(X_sample)
-        mean_abs_shap = np.mean(np.abs(shap_matrix), axis=0)
+        X_muestra = self.preprocesador.transform(df_muestra)
+        matriz_shap = self.shap_local(X_muestra)
+        shap_medio_abs = np.mean(np.abs(matriz_shap), axis=0)
 
         df_imp = pd.DataFrame({
-            "feature_raw": self.feature_names,
-            "mean_abs_shap": mean_abs_shap
+            "variable": self.nombres_variables,
+            "shap_medio_abs": shap_medio_abs
         })
 
-        df_imp["feature_name"] = df_imp["feature_raw"].apply(
-            lambda x: FEATURE_FRIENDLY_NAMES.get(x, x.replace("_", " ").title())
+        df_imp["nombre"] = df_imp["variable"].apply(
+            lambda x: NOMBRES_VARIABLES.get(x, x.replace("_", " ").title())
         )
 
-        df_imp = df_imp.sort_values("mean_abs_shap", ascending=False).reset_index(drop=True)
-        total_shap = df_imp["mean_abs_shap"].sum()
-        df_imp["importance_pct"] = (df_imp["mean_abs_shap"] / (total_shap if total_shap > 0 else 1.0)) * 100.0
+        df_imp = df_imp.sort_values("shap_medio_abs", ascending=False).reset_index(drop=True)
+        total_shap = df_imp["shap_medio_abs"].sum()
+        df_imp["importancia_pct"] = (df_imp["shap_medio_abs"] / (total_shap if total_shap > 0 else 1.0)) * 100.0
 
-        return df_imp.head(top_n)
+        return df_imp.head(top)
 
-    def explain_single_applicant(self, applicant_raw_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def evaluar_solicitud(self, solicitud: Dict[str, Any]) -> Dict[str, Any]:
         """PD, score, decisión, contribuciones SHAP y motivos de denegación para una solicitud."""
-        df_single = pd.DataFrame([applicant_raw_dict])
-        df_enriched = add_engineered_features(df_single)
-        X_trans = self.preprocessor.transform(df_enriched)
+        df_solicitud = pd.DataFrame([solicitud])
+        df_indices = agregar_indices(df_solicitud)
+        X_t = self.preprocesador.transform(df_indices)
 
-        prob_array = self.model_wrapper.predict_proba(X_trans)[0]
-        pd_value = float(prob_array[1])
-        score = convert_pd_to_credit_score(pd_value)
-        decision, badge_color, policy_desc = get_credit_decision(pd_value)
+        probs = self.modelo.predict_proba(X_t)[0]
+        pd_valor = float(probs[1])
+        score = pd_a_score(pd_valor)
+        decision, color, politica = decision_crediticia(pd_valor)
 
-        monto_estimado = float(applicant_raw_dict.get("monto_solicitado", 4500.0))
-        expected_loss = calculate_expected_loss(pd_value, monto_estimado, config.DEFAULT_LGD)
+        monto = float(solicitud.get("monto_solicitado", 4500.0))
+        perdida = perdida_esperada(pd_valor, monto, config.LGD)
 
-        shap_vals = self.compute_local_shap(X_trans)[0]
+        valores_shap = self.shap_local(X_t)[0]
 
-        feature_contributions = []
-        for feat_raw, s_val in zip(self.feature_names, shap_vals):
-            feat_name = FEATURE_FRIENDLY_NAMES.get(feat_raw, feat_raw.replace("_", " ").title())
-            feature_contributions.append({
-                "feature_raw": feat_raw,
-                "feature_name": feat_name,
-                "shap_value": round(float(s_val), 4),
-                "abs_shap": abs(float(s_val))
+        contribuciones = []
+        for variable, valor in zip(self.nombres_variables, valores_shap):
+            nombre = NOMBRES_VARIABLES.get(variable, variable.replace("_", " ").title())
+            contribuciones.append({
+                "variable": variable,
+                "nombre": nombre,
+                "shap": round(float(valor), 4),
+                "shap_abs": abs(float(valor))
             })
 
-        df_contribs = pd.DataFrame(feature_contributions).sort_values("abs_shap", ascending=False)
+        df_contrib = pd.DataFrame(contribuciones).sort_values("shap_abs", ascending=False)
 
         # SHAP negativo baja el riesgo, positivo lo sube
-        factores_favorables = df_contribs[df_contribs["shap_value"] < 0].head(5).to_dict(orient="records")
-        factores_riesgo = df_contribs[df_contribs["shap_value"] > 0].head(5).to_dict(orient="records")
+        factores_favorables = df_contrib[df_contrib["shap"] < 0].head(5).to_dict(orient="records")
+        factores_riesgo = df_contrib[df_contrib["shap"] > 0].head(5).to_dict(orient="records")
 
         # Hasta 3 motivos, sin repetir texto
-        adverse_reasons = []
-        for item in factores_riesgo:
-            feat = item["feature_raw"]
-            reason_text = ADVERSE_ACTION_REASON_MAP.get(
-                feat,
-                f"Impacto desfavorable en el indicador: {item['feature_name']} (Contribución: +{item['shap_value']:.2f})"
+        motivos = []
+        for factor in factores_riesgo:
+            variable = factor["variable"]
+            motivo = MOTIVOS_DENEGACION.get(
+                variable,
+                f"Impacto desfavorable en el indicador: {factor['nombre']} (Contribución: +{factor['shap']:.2f})"
             )
-            if reason_text not in adverse_reasons:
-                adverse_reasons.append(reason_text)
-            if len(adverse_reasons) == 3:
+            if motivo not in motivos:
+                motivos.append(motivo)
+            if len(motivos) == 3:
                 break
 
-        if not adverse_reasons:
-            adverse_reasons = ["No se registraron alertas severas de riesgo de impago en el perfil del solicitante."]
+        if not motivos:
+            motivos = ["No se registraron alertas severas de riesgo de impago en el perfil del solicitante."]
 
-        narrativa = self._generate_business_narrative(
-            df_enriched.iloc[0].to_dict(),
-            pd_value,
+        dictamen = self._armar_dictamen(
+            df_indices.iloc[0].to_dict(),
+            pd_valor,
             score,
             decision,
             factores_favorables,
             factores_riesgo,
-            adverse_reasons
+            motivos
         )
 
         return {
-            "pd_value": round(pd_value, 4),
-            "pd_pct": round(pd_value * 100.0, 2),
-            "score_crediticio": score,
+            "pd": round(pd_valor, 4),
+            "pd_pct": round(pd_valor * 100.0, 2),
+            "score": score,
             "decision": decision,
-            "badge_color": badge_color,
-            "politica_descripcion": policy_desc,
-            "monto_referencial": monto_estimado,
-            "perdida_esperada": expected_loss,
-            "expected_value": round(self.expected_value, 4),
-            "ratios_clave": {
-                "Inclusión Digital": f"{df_enriched['indice_inclusion_digital'].iloc[0]*100:.1f}%",
-                "Resiliencia Financiera": f"{df_enriched['indice_resiliencia_financiera'].iloc[0]*100:.1f}%",
-                "Vulnerabilidad Liquidez": f"{df_enriched['indice_vulnerabilidad_liquidez'].iloc[0]*100:.1f}%",
-                "Cultura de Pago": f"{df_enriched['indice_cultura_pago'].iloc[0]*100:.1f}%",
+            "color": color,
+            "politica": politica,
+            "monto": monto,
+            "perdida_esperada": perdida,
+            "valor_base": round(self.valor_base, 4),
+            "indices": {
+                "Inclusión Digital": f"{df_indices['indice_inclusion_digital'].iloc[0]*100:.1f}%",
+                "Resiliencia Financiera": f"{df_indices['indice_resiliencia_financiera'].iloc[0]*100:.1f}%",
+                "Vulnerabilidad Liquidez": f"{df_indices['indice_vulnerabilidad_liquidez'].iloc[0]*100:.1f}%",
+                "Cultura de Pago": f"{df_indices['indice_cultura_pago'].iloc[0]*100:.1f}%",
             },
-            "shap_features": df_contribs.head(10).to_dict(orient="records"),
+            "contribuciones": df_contrib.head(10).to_dict(orient="records"),
             "factores_favorables": factores_favorables,
             "factores_riesgo": factores_riesgo,
-            "razones_accion_adversa_sbs": adverse_reasons,
-            "narrativa_comite": narrativa
+            "motivos_denegacion": motivos,
+            "dictamen": dictamen
         }
 
-    def _generate_business_narrative(
+    def _armar_dictamen(
         self,
-        applicant_data: Dict[str, Any],
-        pd_val: float,
+        datos: Dict[str, Any],
+        pd_valor: float,
         score: int,
         decision: str,
         favorables: List[Dict[str, Any]],
         riesgos: List[Dict[str, Any]],
-        adverse_reasons: List[str]
+        motivos: List[str]
     ) -> Dict[str, Any]:
         """Resumen en texto para el analista."""
         puntos_fuertes = []
         for f in favorables[:3]:
-            puntos_fuertes.append(f"{f['feature_name']} (Atenúa riesgo en {abs(f['shap_value']):.2f} pts log-odds)")
+            puntos_fuertes.append(f"{f['nombre']} (Atenúa riesgo en {abs(f['shap']):.2f} pts log-odds)")
 
-        alertas_riesgo = []
+        alertas = []
         for r in riesgos[:3]:
-            alertas_riesgo.append(f"{r['feature_name']} (Aumenta riesgo en +{r['shap_value']:.2f} pts log-odds)")
+            alertas.append(f"{r['nombre']} (Aumenta riesgo en +{r['shap']:.2f} pts log-odds)")
 
         recomendaciones = []
         if decision == "APROBADO":
@@ -246,93 +246,93 @@ class CreditRiskExplainer:
             recomendaciones.append("Comprobar extracto de billeteras digitales (Yape/Plin) de los últimos 3 meses.")
         else:
             recomendaciones.append("Motivos de denegación disponibles para el solicitante (Ley N.° 32294).")
-            recomendaciones.append(f"Motivo prioritario: {adverse_reasons[0]}")
+            recomendaciones.append(f"Motivo prioritario: {motivos[0]}")
             recomendaciones.append("Recomendar regularización de cuentas de servicios y fomento del ahorro formal previo a una nueva postulación.")
 
         return {
-            "resumen_ejecutivo": f"Solicitante con Score Crediticio de {score}/1000 (PD estimada: {pd_val*100:.2f}%), Dictamen: {decision}.",
+            "resumen": f"Solicitante con Score Crediticio de {score}/1000 (PD estimada: {pd_valor*100:.2f}%), Dictamen: {decision}.",
             "puntos_fuertes": puntos_fuertes if puntos_fuertes else ["Perfil sin factores atenuantes destacados."],
-            "alertas_riesgo": alertas_riesgo if alertas_riesgo else ["Sin factores de riesgo críticos identificados."],
-            "recomendaciones_analista": recomendaciones
+            "alertas_riesgo": alertas if alertas else ["Sin factores de riesgo críticos identificados."],
+            "recomendaciones": recomendaciones
         }
 
-    def generate_waterfall_plot_figure(self, applicant_raw_dict: Dict[str, Any], max_display: int = 10):
-        df_single = pd.DataFrame([applicant_raw_dict])
-        df_enriched = add_engineered_features(df_single)
-        X_trans = self.preprocessor.transform(df_enriched)
+    def grafico_waterfall(self, solicitud: Dict[str, Any], max_variables: int = 10):
+        df_solicitud = pd.DataFrame([solicitud])
+        df_indices = agregar_indices(df_solicitud)
+        X_t = self.preprocesador.transform(df_indices)
 
-        shap_vals = self.compute_local_shap(X_trans)[0]
+        valores_shap = self.shap_local(X_t)[0]
 
         # Mostrar los valores del cuestionario, no los escalados
-        raw_row = df_enriched.iloc[0]
-        display_data = np.array([
-            float(raw_row[f]) if f in self.preprocessor.numerical_features else float(v)
-            for f, v in zip(self.feature_names, X_trans[0])
+        fila = df_indices.iloc[0]
+        datos_mostrar = np.array([
+            float(fila[f]) if f in self.preprocesador.numericas else float(v)
+            for f, v in zip(self.nombres_variables, X_t[0])
         ])
 
-        explanation = shap.Explanation(
-            values=shap_vals,
-            base_values=self.expected_value,
-            data=display_data,
-            feature_names=[FEATURE_FRIENDLY_NAMES.get(f, f) for f in self.feature_names]
+        explicacion = shap.Explanation(
+            values=valores_shap,
+            base_values=self.valor_base,
+            data=datos_mostrar,
+            feature_names=[NOMBRES_VARIABLES.get(f, f) for f in self.nombres_variables]
         )
 
         fig = plt.figure(figsize=(9, 5.5), dpi=100)
-        shap.plots.waterfall(explanation, max_display=max_display, show=False)
+        shap.plots.waterfall(explicacion, max_display=max_variables, show=False)
         plt.title(f"Explicabilidad Local TreeSHAP (Ley N.° 32294)", fontsize=11, fontweight="bold", pad=12)
         plt.tight_layout()
         return fig
 
 
-def get_default_explainer() -> CreditRiskExplainer:
-    preprocessor = CreditDataPreprocessor.load(config.PREPROCESSOR_PATH)
-    model = CreditRiskXGBoostWrapper.load(config.XGBOOST_MODEL_JSON)
-    return CreditRiskExplainer(model, preprocessor)
+def cargar_explicador() -> ExplicadorSHAP:
+    preprocesador = Preprocesador.cargar(config.RUTA_PREPROCESADOR)
+    modelo = ModeloXGBoost.cargar(config.RUTA_MODELO)
+    return ExplicadorSHAP(modelo, preprocesador)
 
 
-def generate_and_save_artifacts():
+def generar_artefactos():
     """Beeswarm global y estadísticas SHAP sobre test."""
-    explainer = get_default_explainer()
-    df_test = pd.read_csv(config.PROCESSED_TEST_PATH)
+    explicador = cargar_explicador()
+    df_test = pd.read_csv(config.RUTA_TEST)
 
-    X_test = explainer.preprocessor.transform(df_test)
-    shap_matrix = explainer.compute_local_shap(X_test)
+    X_test = explicador.preprocesador.transform(df_test)
+    matriz_shap = explicador.shap_local(X_test)
 
-    friendly_names = [FEATURE_FRIENDLY_NAMES.get(f, f.replace("_", " ").title()) for f in explainer.feature_names]
+    nombres = [NOMBRES_VARIABLES.get(f, f.replace("_", " ").title()) for f in explicador.nombres_variables]
 
     plt.figure(figsize=(10, 6), dpi=120)
     shap.summary_plot(
-        shap_matrix,
+        matriz_shap,
         X_test,
-        feature_names=friendly_names,
+        feature_names=nombres,
         max_display=15,
         show=False
     )
     # shap pone las etiquetas en inglés
     fig = plt.gcf()
     fig.axes[0].set_xlabel("Valor SHAP (impacto en la log-odds de mora)")
-    colorbar = fig.axes[-1]
-    colorbar.set_ylabel("Valor de la variable")
-    colorbar.set_yticklabels(["Bajo", "Alto"])
+    barra = fig.axes[-1]
+    barra.set_ylabel("Valor de la variable")
+    barra.set_yticklabels(["Bajo", "Alto"])
     plt.title("Ranking Global de Variables - TreeSHAP (Base Empírica SBS/CAF 2022)", fontsize=12, fontweight="bold")
     plt.tight_layout()
-    beeswarm_path = config.MODELS_DIR / "shap_beeswarm.png"
-    plt.savefig(beeswarm_path, bbox_inches="tight")
+    ruta_beeswarm = config.DIR_MODELOS / "shap_beeswarm.png"
+    plt.savefig(ruta_beeswarm, bbox_inches="tight")
     plt.close()
 
-    stats = {
-        "expected_value": float(explainer.expected_value),
-        "feature_importance": explainer.get_global_feature_importance(df_test, top_n=20).to_dict(orient="records")
+    resumen = {
+        "valor_base": float(explicador.valor_base),
+        "importancia": explicador.importancia_global(df_test, top=20).to_dict(orient="records")
     }
-    with open(config.SHAP_SUMMARY_PATH, "w", encoding="utf-8") as f:
-        json.dump(stats, f, indent=2, ensure_ascii=False)
+    with open(config.RUTA_RESUMEN_SHAP, "w", encoding="utf-8") as f:
+        json.dump(resumen, f, indent=2, ensure_ascii=False)
 
 
 if __name__ == "__main__":
-    generate_and_save_artifacts()
+    generar_artefactos()
 
     # prueba rápida con una solicitud
-    sample = {
+    ejemplo = {
         "edad": 34,
         "carga_familiar_adultos": 2,
         "carga_familiar_ninos": 1,
@@ -373,7 +373,7 @@ if __name__ == "__main__":
         "monto_solicitado": 4000.0
     }
 
-    res = get_default_explainer().explain_single_applicant(sample)
-    print(f"{res['decision']} | score {res['score_crediticio']} | PD {res['pd_pct']}%")
-    for r in res["razones_accion_adversa_sbs"]:
+    res = cargar_explicador().evaluar_solicitud(ejemplo)
+    print(f"{res['decision']} | score {res['score']} | PD {res['pd_pct']}%")
+    for r in res["motivos_denegacion"]:
         print(" -", r)

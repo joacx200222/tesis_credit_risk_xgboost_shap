@@ -1,5 +1,5 @@
 {
-  "numerical_features": [
+  "numericas": [
     "edad",
     "carga_familiar_adultos",
     "carga_familiar_ninos",
@@ -20,7 +20,7 @@
     "indice_vulnerabilidad_liquidez",
     "indice_cultura_pago"
   ],
-  "categorical_features": [
+  "categoricas": [
     "genero",
     "nivel_educacion",
     "departamento",
@@ -44,7 +44,7 @@
     "ha_usado_pandero_junta",
     "credito_formal_negado"
   ],
-  "num_medians_": {
+  "medianas": {
     "edad": 39.0,
     "carga_familiar_adultos": 3.0,
     "carga_familiar_ninos": 1.0,
@@ -65,7 +65,7 @@
     "indice_vulnerabilidad_liquidez": 0.35624999999999996,
     "indice_cultura_pago": 0.75
   },
-  "num_iqr_": {
+  "mediana_iqr": {
     "edad": [
       39.0,
       22.0
@@ -143,7 +143,7 @@
       0.5
     ]
   },
-  "cat_modes_": {
+  "modas": {
     "genero": "Hombre",
     "nivel_educacion": "Secundaria Completa",
     "departamento": "Lima / Callao",
@@ -167,7 +167,7 @@
     "ha_usado_pandero_junta": "No",
     "credito_formal_negado": "No"
   },
-  "cat_categories_": {
+  "categorias": {
     "genero": [
       "Hombre",
       "Mujer"
@@ -288,7 +288,7 @@
       "Sí"
     ]
   },
-  "feature_names_out_": [
+  "nombres_salida": [
     "edad",
     "carga_familiar_adultos",
     "carga_familiar_ninos",
@@ -384,5 +384,5 @@
     "credito_formal_negado_No",
     "credito_formal_negado_Sí"
   ],
-  "is_fitted_": true
+  "ajustado": true
 }

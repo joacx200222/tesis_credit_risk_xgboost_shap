@@ -6,20 +6,20 @@ import sys
 # `streamlit run src/app.py` solo agrega src/ al path; hace falta la raíz para importar el paquete src
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
-from src.data_preprocessing import CreditDataPreprocessor
-from src.model_training import CreditRiskXGBoostWrapper
-from src.explainability import CreditRiskExplainer
-from src.model_evaluation import calculate_expected_loss
+from src.preprocesamiento import Preprocesador
+from src.entrenamiento import ModeloXGBoost
+from src.explicabilidad import ExplicadorSHAP
+from src.evaluacion import perdida_esperada
 
 # Streamlit
 try:
     import streamlit as st
-    STREAMLIT_AVAILABLE = True
+    HAY_STREAMLIT = True
 except ImportError:
-    STREAMLIT_AVAILABLE = False
+    HAY_STREAMLIT = False
 
 
-def create_sample_profiles():
+def perfiles_ejemplo():
     """Perfiles de ejemplo para precargar el formulario."""
     return {
         "Perfil aprobado (bajo riesgo)": {
@@ -185,23 +185,23 @@ def create_sample_profiles():
     }
 
 
-def load_system_artifacts():
-    preprocessor = CreditDataPreprocessor.load(config.PREPROCESSOR_PATH)
-    model = CreditRiskXGBoostWrapper.load(config.XGBOOST_MODEL_JSON)
-    explainer = CreditRiskExplainer(model, preprocessor)
+def cargar_artefactos():
+    preprocesador = Preprocesador.cargar(config.RUTA_PREPROCESADOR)
+    modelo = ModeloXGBoost.cargar(config.RUTA_MODELO)
+    explicador = ExplicadorSHAP(modelo, preprocesador)
 
-    benchmark_data = {}
-    if config.BENCHMARK_RESULTS_PATH.exists():
-        with open(config.BENCHMARK_RESULTS_PATH, "r", encoding="utf-8") as f:
-            benchmark_data = json.load(f)
+    datos_benchmark = {}
+    if config.RUTA_BENCHMARK.exists():
+        with open(config.RUTA_BENCHMARK, "r", encoding="utf-8") as f:
+            datos_benchmark = json.load(f)
 
-    df_test = pd.read_csv(config.PROCESSED_TEST_PATH) if config.PROCESSED_TEST_PATH.exists() else None
+    df_test = pd.read_csv(config.RUTA_TEST) if config.RUTA_TEST.exists() else None
 
-    return preprocessor, model, explainer, benchmark_data, df_test
+    return preprocesador, modelo, explicador, datos_benchmark, df_test
 
 
-def run_streamlit_app():
-    if not STREAMLIT_AVAILABLE:
+def ejecutar_app():
+    if not HAY_STREAMLIT:
         print("[AVISO] Streamlit no está instalado. Ejecuta: streamlit run src/app.py")
         return
 
@@ -211,12 +211,12 @@ def run_streamlit_app():
         initial_sidebar_state="expanded"
     )
 
-    preprocessor, model, explainer, benchmark_data, df_test = load_system_artifacts()
-    sample_profiles = create_sample_profiles()
+    preprocesador, modelo, explicador, datos_benchmark, df_test = cargar_artefactos()
+    perfiles = perfiles_ejemplo()
 
     st.sidebar.markdown("### Cargar Perfil de Prueba")
-    selected_preset = st.sidebar.selectbox("Selecciona un perfil:", list(sample_profiles.keys()))
-    preset = sample_profiles[selected_preset]
+    perfil_elegido = st.sidebar.selectbox("Selecciona un perfil:", list(perfiles.keys()))
+    perfil = perfiles[perfil_elegido]
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Marco Regulatorio")
@@ -242,89 +242,89 @@ def run_streamlit_app():
 
         with col1:
             st.markdown("##### Eje 1: Sociodemográfico y Ocupación")
-            edad = st.number_input("Edad (Años)", min_value=18, max_value=85, value=preset["edad"])
-            genero = st.selectbox("Género", ["Mujer", "Hombre"], index=0 if preset["genero"] == "Mujer" else 1)
-            nivel_educacion = st.selectbox("Nivel Educativo", config.OPCIONES_EDUCACION, index=config.OPCIONES_EDUCACION.index(preset["nivel_educacion"]))
-            departamento = st.selectbox("Departamento", config.OPCIONES_DEPARTAMENTO, index=config.OPCIONES_DEPARTAMENTO.index(preset["departamento"]))
-            ambito = st.selectbox("Ámbito Geográfico", ["Urbano", "Rural"], index=0 if preset["ambito"] == "Urbano" else 1)
+            edad = st.number_input("Edad (Años)", min_value=18, max_value=85, value=perfil["edad"])
+            genero = st.selectbox("Género", ["Mujer", "Hombre"], index=0 if perfil["genero"] == "Mujer" else 1)
+            nivel_educacion = st.selectbox("Nivel Educativo", config.OPCIONES_EDUCACION, index=config.OPCIONES_EDUCACION.index(perfil["nivel_educacion"]))
+            departamento = st.selectbox("Departamento", config.OPCIONES_DEPARTAMENTO, index=config.OPCIONES_DEPARTAMENTO.index(perfil["departamento"]))
+            ambito = st.selectbox("Ámbito Geográfico", ["Urbano", "Rural"], index=0 if perfil["ambito"] == "Urbano" else 1)
 
             c_sub1, c_sub2 = st.columns(2)
             with c_sub1:
-                carga_familiar_adultos = st.number_input("Adultos en hogar", min_value=1, max_value=10, value=preset["carga_familiar_adultos"])
+                carga_familiar_adultos = st.number_input("Adultos en hogar", min_value=1, max_value=10, value=perfil["carga_familiar_adultos"])
             with c_sub2:
-                carga_familiar_ninos = st.number_input("Hijos menores", min_value=0, max_value=10, value=preset["carga_familiar_ninos"])
+                carga_familiar_ninos = st.number_input("Hijos menores", min_value=0, max_value=10, value=perfil["carga_familiar_ninos"])
 
-            condicion_laboral = st.selectbox("Ocupación / Condición", config.OPCIONES_CONDICION_LABORAL, index=config.OPCIONES_CONDICION_LABORAL.index(preset["condicion_laboral"]))
-            es_informal = st.selectbox("Condición Tributaria / Formalidad", ["Informal / Sin RUC", "Formalizado / Con RUC o Beneficios"], index=0 if preset["es_informal"] == "Informal / Sin RUC" else 1)
+            condicion_laboral = st.selectbox("Ocupación / Condición", config.OPCIONES_CONDICION_LABORAL, index=config.OPCIONES_CONDICION_LABORAL.index(perfil["condicion_laboral"]))
+            es_informal = st.selectbox("Condición Tributaria / Formalidad", ["Informal / Sin RUC", "Formalizado / Con RUC o Beneficios"], index=0 if perfil["es_informal"] == "Informal / Sin RUC" else 1)
 
         with col2:
             st.markdown("##### Eje 2: Inclusión Digital y Datos Alternativos")
-            adopcion_yape_plin = st.selectbox("¿Usa Billeteras Móviles (Yape/Plin/BIM)?", ["Sí", "No"], index=0 if preset["adopcion_yape_plin"] == "Sí" else 1)
-            tiene_billetera_activa = st.selectbox("¿Tiene Billetera Digital Activa actualmente?", ["Sí", "No"], index=0 if preset["tiene_billetera_activa"] == "Sí" else 1)
+            adopcion_yape_plin = st.selectbox("¿Usa Billeteras Móviles (Yape/Plin/BIM)?", ["Sí", "No"], index=0 if perfil["adopcion_yape_plin"] == "Sí" else 1)
+            tiene_billetera_activa = st.selectbox("¿Tiene Billetera Digital Activa actualmente?", ["Sí", "No"], index=0 if perfil["tiene_billetera_activa"] == "Sí" else 1)
             frecuencia_yape_plin = st.select_slider(
                 "Frecuencia de Uso de Billeteras Digitales",
                 options=[1, 2, 3, 4],
-                value=preset["frecuencia_yape_plin"],
+                value=perfil["frecuencia_yape_plin"],
                 format_func=lambda x: {1: "1. Nunca", 2: "2. Poco", 3: "3. Casi siempre", 4: "4. Siempre"}[x]
             )
-            pago_celular_frecuencia = st.slider("Frecuencia de pagos/cobros con celular (1 a 5)", 1, 5, preset["pago_celular_frecuencia"])
-            uso_whatsapp = st.slider("Uso de mensajería instantánea (WhatsApp) (1 a 4)", 1, 4, preset["uso_whatsapp"])
-            uso_internet = st.slider("Uso de Internet en su vida diaria (1 a 4)", 1, 4, preset["uso_internet"])
-            preferencia_efectivo = st.slider("Aversión a lo digital: 'Prefiero efectivo a tarjetas/apps' (1 a 5)", 1, 5, preset["preferencia_efectivo"])
-            confianza_herramientas_digitales = st.slider("Confianza: 'Herramientas digitales facilitan mis finanzas' (1 a 5)", 1, 5, preset["confianza_herramientas_digitales"])
+            pago_celular_frecuencia = st.slider("Frecuencia de pagos/cobros con celular (1 a 5)", 1, 5, perfil["pago_celular_frecuencia"])
+            uso_whatsapp = st.slider("Uso de mensajería instantánea (WhatsApp) (1 a 4)", 1, 4, perfil["uso_whatsapp"])
+            uso_internet = st.slider("Uso de Internet en su vida diaria (1 a 4)", 1, 4, perfil["uso_internet"])
+            preferencia_efectivo = st.slider("Aversión a lo digital: 'Prefiero efectivo a tarjetas/apps' (1 a 5)", 1, 5, perfil["preferencia_efectivo"])
+            confianza_herramientas_digitales = st.slider("Confianza: 'Herramientas digitales facilitan mis finanzas' (1 a 5)", 1, 5, perfil["confianza_herramientas_digitales"])
 
             st.markdown("###### Puntualidad en Cuentas y Recibos Básicos")
             p_sub1, p_sub2 = st.columns(2)
             with p_sub1:
-                guarda_dinero_recibos = st.selectbox("¿Reserva dinero para facturas?", ["Sí", "No"], index=0 if preset["guarda_dinero_recibos"] == "Sí" else 1)
+                guarda_dinero_recibos = st.selectbox("¿Reserva dinero para facturas?", ["Sí", "No"], index=0 if perfil["guarda_dinero_recibos"] == "Sí" else 1)
             with p_sub2:
-                anota_recibos_vencer = st.selectbox("¿Anota fechas de vencimiento?", ["Sí", "No"], index=0 if preset["anota_recibos_vencer"] == "Sí" else 1)
+                anota_recibos_vencer = st.selectbox("¿Anota fechas de vencimiento?", ["Sí", "No"], index=0 if perfil["anota_recibos_vencer"] == "Sí" else 1)
 
-            puntualidad_pago_deudas = st.slider("Puntualidad declarada en cuentas y deudas (1: Nunca a 5: Siempre)", 1, 5, preset["puntualidad_pago_deudas"])
+            puntualidad_pago_deudas = st.slider("Puntualidad declarada en cuentas y deudas (1: Nunca a 5: Siempre)", 1, 5, perfil["puntualidad_pago_deudas"])
 
         with col3:
             st.markdown("##### Eje 3: Capacidad y Comportamiento Financiero")
-            rango_ingreso = st.selectbox("Nivel de Ingreso Mensual del Hogar", config.OPCIONES_RANGO_INGRESO, index=config.OPCIONES_RANGO_INGRESO.index(preset["rango_ingreso"]))
-            nivel_socioeconomico = st.selectbox("Nivel Socioeconómico (NSE)", config.OPCIONES_NSE, index=config.OPCIONES_NSE.index(preset["nivel_socioeconomico"]))
-            ingresos_estables = st.selectbox("¿Sus ingresos mensuales son regulares/estables?", ["Sí", "No"], index=0 if preset["ingresos_estables"] == "Sí" else 1)
+            rango_ingreso = st.selectbox("Nivel de Ingreso Mensual del Hogar", config.OPCIONES_RANGO_INGRESO, index=config.OPCIONES_RANGO_INGRESO.index(perfil["rango_ingreso"]))
+            nivel_socioeconomico = st.selectbox("Nivel Socioeconómico (NSE)", config.OPCIONES_NSE, index=config.OPCIONES_NSE.index(perfil["nivel_socioeconomico"]))
+            ingresos_estables = st.selectbox("¿Sus ingresos mensuales son regulares/estables?", ["Sí", "No"], index=0 if perfil["ingresos_estables"] == "Sí" else 1)
 
             pl_sub1, pl_sub2 = st.columns(2)
             with pl_sub1:
-                planifica_presupuesto = st.selectbox("¿Elabora presupuesto?", ["Sí", "No"], index=0 if preset["planifica_presupuesto"] == "Sí" else 1)
+                planifica_presupuesto = st.selectbox("¿Elabora presupuesto?", ["Sí", "No"], index=0 if perfil["planifica_presupuesto"] == "Sí" else 1)
             with pl_sub2:
-                anota_gastos = st.selectbox("¿Registra gastos?", ["Sí", "No"], index=0 if preset["anota_gastos"] == "Sí" else 1)
+                anota_gastos = st.selectbox("¿Registra gastos?", ["Sí", "No"], index=0 if perfil["anota_gastos"] == "Sí" else 1)
 
-            capacidad_afrontar_imprevisto = st.selectbox("¿Puede afrontar un gasto imprevisto hoy sin endeudarse?", ["Sí", "No"], index=0 if preset["capacidad_afrontar_imprevisto"] == "Sí" else 1)
+            capacidad_afrontar_imprevisto = st.selectbox("¿Puede afrontar un gasto imprevisto hoy sin endeudarse?", ["Sí", "No"], index=0 if perfil["capacidad_afrontar_imprevisto"] == "Sí" else 1)
             dificultad_emergencia_1000 = st.select_slider(
                 "Dificultad de reunir S/ 1,000 en emergencia",
                 options=[1, 2, 3, 4],
-                value=preset["dificultad_emergencia_1000"],
+                value=perfil["dificultad_emergencia_1000"],
                 format_func=lambda x: {1: "1. Nada difícil", 2: "2. Algo difícil", 3: "3. Muy difícil", 4: "4. No podría"}[x]
             )
             meses_resiliencia_desempleo = st.select_slider(
                 "Meses de cobertura si pierde fuente de ingresos",
                 options=[1, 2, 3, 4, 5],
-                value=preset["meses_resiliencia_desempleo"],
+                value=perfil["meses_resiliencia_desempleo"],
                 format_func=lambda x: {1: "< 1 semana", 2: "1 mes", 3: "3 meses", 4: "6 meses", 5: "> 6 meses"}[x]
             )
-            sobra_dinero_fin_mes = st.slider("Le queda dinero de sobra a fin de mes (1 a 5)", 1, 5, preset["sobra_dinero_fin_mes"])
-            ingreso_apenas_alcanza = st.slider("Vulnerabilidad: 'El ingreso apenas alcanza' (1 a 5)", 1, 5, preset["ingreso_apenas_alcanza"])
-            percepcion_sobreendeudado = st.slider("Sobreendeudamiento: 'Tengo demasiadas deudas' (1 a 5)", 1, 5, preset["percepcion_sobreendeudado"])
+            sobra_dinero_fin_mes = st.slider("Le queda dinero de sobra a fin de mes (1 a 5)", 1, 5, perfil["sobra_dinero_fin_mes"])
+            ingreso_apenas_alcanza = st.slider("Vulnerabilidad: 'El ingreso apenas alcanza' (1 a 5)", 1, 5, perfil["ingreso_apenas_alcanza"])
+            percepcion_sobreendeudado = st.slider("Sobreendeudamiento: 'Tengo demasiadas deudas' (1 a 5)", 1, 5, perfil["percepcion_sobreendeudado"])
 
             st.markdown("###### Historial Crediticio Formal vs. Informal")
             h_sub1, h_sub2 = st.columns(2)
             with h_sub1:
-                tiene_cuenta_ahorro = st.selectbox("Cuenta Ahorros", ["Sí", "No"], index=0 if preset["tiene_cuenta_ahorro"] == "Sí" else 1)
-                tiene_tarjeta_credito = st.selectbox("Tarjeta Crédito", ["Sí", "No"], index=0 if preset["tiene_tarjeta_credito"] == "Sí" else 1)
-                tiene_prestamo_personal = st.selectbox("Préstamo Personal", ["Sí", "No"], index=0 if preset["tiene_prestamo_personal"] == "Sí" else 1)
+                tiene_cuenta_ahorro = st.selectbox("Cuenta Ahorros", ["Sí", "No"], index=0 if perfil["tiene_cuenta_ahorro"] == "Sí" else 1)
+                tiene_tarjeta_credito = st.selectbox("Tarjeta Crédito", ["Sí", "No"], index=0 if perfil["tiene_tarjeta_credito"] == "Sí" else 1)
+                tiene_prestamo_personal = st.selectbox("Préstamo Personal", ["Sí", "No"], index=0 if perfil["tiene_prestamo_personal"] == "Sí" else 1)
             with h_sub2:
-                ha_usado_prestamista = st.selectbox("Prestamista Informal", ["Sí", "No"], index=0 if preset["ha_usado_prestamista"] == "Sí" else 1)
-                ha_usado_pandero_junta = st.selectbox("Juntas / Panderos", ["Sí", "No"], index=0 if preset["ha_usado_pandero_junta"] == "Sí" else 1)
-                credito_formal_negado = st.selectbox("Crédito Negado Previo", ["Sí", "No"], index=0 if preset["credito_formal_negado"] == "Sí" else 1)
+                ha_usado_prestamista = st.selectbox("Prestamista Informal", ["Sí", "No"], index=0 if perfil["ha_usado_prestamista"] == "Sí" else 1)
+                ha_usado_pandero_junta = st.selectbox("Juntas / Panderos", ["Sí", "No"], index=0 if perfil["ha_usado_pandero_junta"] == "Sí" else 1)
+                credito_formal_negado = st.selectbox("Crédito Negado Previo", ["Sí", "No"], index=0 if perfil["credito_formal_negado"] == "Sí" else 1)
 
-            monto_solicitado = st.number_input("Monto Solicitado (S/)", min_value=500.0, max_value=50000.0, value=float(preset["monto_solicitado"]), step=500.0)
+            monto_solicitado = st.number_input("Monto Solicitado (S/)", min_value=500.0, max_value=50000.0, value=float(perfil["monto_solicitado"]), step=500.0)
 
-        applicant_dict = {
+        solicitud = {
             "edad": edad,
             "carga_familiar_adultos": carga_familiar_adultos,
             "carga_familiar_ninos": carga_familiar_ninos,
@@ -367,78 +367,78 @@ def run_streamlit_app():
 
         st.markdown("---")
         if st.button("Evaluar Solicitud con XGBoost + TreeSHAP", type="primary", width="stretch"):
-            eval_result = explainer.explain_single_applicant(applicant_dict)
+            resultado = explicador.evaluar_solicitud(solicitud)
 
             st.markdown("### Resultado de la Evaluación Crediticia")
 
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
             with kpi1:
-                st.metric("Score Crediticio (0 - 1000)", f"{eval_result['score_crediticio']} pts")
+                st.metric("Score Crediticio (0 - 1000)", f"{resultado['score']} pts")
             with kpi2:
-                st.metric("Probabilidad de Mora (PD)", f"{eval_result['pd_pct']}%")
+                st.metric("Probabilidad de Mora (PD)", f"{resultado['pd_pct']}%")
             with kpi3:
-                el_custom = calculate_expected_loss(eval_result['pd_value'], monto_solicitado, config.DEFAULT_LGD)
-                st.metric("Pérdida Esperada (EL)", f"S/ {el_custom:,.2f}", help="Calculado con LGD normativo SBS del 50%")
+                el = perdida_esperada(resultado['pd'], monto_solicitado, config.LGD)
+                st.metric("Pérdida Esperada (EL)", f"S/ {el:,.2f}", help="Calculado con LGD normativo SBS del 50%")
             with kpi4:
                 st.markdown("**Dictamen del Modelo:**")
                 st.markdown(
-                    f"<div style='background-color:{eval_result['badge_color']}; color:white; font-size:18px; font-weight:bold; text-align:center; padding:10px; border-radius:8px;'>"
-                    f"{eval_result['decision']}</div>",
+                    f"<div style='background-color:{resultado['color']}; color:white; font-size:18px; font-weight:bold; text-align:center; padding:10px; border-radius:8px;'>"
+                    f"{resultado['decision']}</div>",
                     unsafe_allow_html=True
                 )
 
-            st.caption(eval_result['politica_descripcion'])
+            st.caption(resultado['politica'])
             st.markdown("---")
 
             res_col1, res_col2 = st.columns([1, 1])
 
             with res_col1:
                 st.markdown("##### Índices Derivados de Comportamiento")
-                for r_name, r_val in eval_result["ratios_clave"].items():
-                    st.write(f"- **{r_name}:** `{r_val}`")
+                for nombre, valor in resultado["indices"].items():
+                    st.write(f"- **{nombre}:** `{valor}`")
 
                 st.markdown("##### Razones de Acción Adversa (Ley N.° 32294)")
                 st.caption("Factores prioritarios que incrementaron el riesgo en la decisión algorítmica:")
-                for i, r_text in enumerate(eval_result["razones_accion_adversa_sbs"], 1):
-                    st.markdown(f"**{i}.** {r_text}")
+                for i, texto in enumerate(resultado["motivos_denegacion"], 1):
+                    st.markdown(f"**{i}.** {texto}")
 
                 st.markdown("##### Dictamen para el Comité de Créditos")
-                narr = eval_result["narrativa_comite"]
-                st.write(f"**Resumen:** {narr['resumen_ejecutivo']}")
+                dictamen = resultado["dictamen"]
+                st.write(f"**Resumen:** {dictamen['resumen']}")
 
                 st.markdown("**Fortalezas Detectadas:**")
-                for f in narr["puntos_fuertes"]:
+                for f in dictamen["puntos_fuertes"]:
                     st.markdown(f"- {f}")
 
                 st.markdown("**Factores de Riesgo:**")
-                for a in narr["alertas_riesgo"]:
+                for a in dictamen["alertas_riesgo"]:
                     st.markdown(f"- {a}")
 
                 st.markdown("**Recomendaciones:**")
-                for rec in narr["recomendaciones_analista"]:
+                for rec in dictamen["recomendaciones"]:
                     st.markdown(f"- {rec}")
 
             with res_col2:
                 st.markdown("##### Explicabilidad Local TreeSHAP (Waterfall Plot)")
-                st.caption(f"Valor Base E[f(x)] = {eval_result['expected_value']:.4f} log-odds")
+                st.caption(f"Valor Base E[f(x)] = {resultado['valor_base']:.4f} log-odds")
 
-                fig_waterfall = explainer.generate_waterfall_plot_figure(applicant_dict, max_display=9)
-                st.pyplot(fig_waterfall, width="stretch")
+                fig = explicador.grafico_waterfall(solicitud, max_variables=9)
+                st.pyplot(fig, width="stretch")
 
     with tab2:
         st.subheader("Explicabilidad Global del Portafolio (TreeSHAP Beeswarm)")
         st.markdown("Ranking de las variables con mayor contribución promedio sobre la base empírica SBS/CAF 2022:")
 
-        beeswarm_img_path = config.MODELS_DIR / "shap_beeswarm.png"
-        if beeswarm_img_path.exists():
-            st.image(str(beeswarm_img_path), caption="SHAP Summary Plot (Beeswarm) - Base Oficial SBS/CAF 2022", width="stretch")
+        ruta_beeswarm = config.DIR_MODELOS / "shap_beeswarm.png"
+        if ruta_beeswarm.exists():
+            st.image(str(ruta_beeswarm), caption="SHAP Summary Plot (Beeswarm) - Base Oficial SBS/CAF 2022", width="stretch")
 
         if df_test is not None:
             st.markdown("##### Tabla de Importancia Relativa Global")
-            df_global_imp = explainer.get_global_feature_importance(df_test, top_n=12)
+            df_imp = explicador.importancia_global(df_test, top=12)
             st.dataframe(
-                df_global_imp[["feature_name", "mean_abs_shap", "importance_pct"]].rename(
-                    columns={"feature_name": "Variable", "mean_abs_shap": "Impacto Medio |SHAP|", "importance_pct": "Importancia Relativa (%)"}
+                df_imp[["nombre", "shap_medio_abs", "importancia_pct"]].rename(
+                    columns={"nombre": "Variable", "shap_medio_abs": "Impacto Medio |SHAP|", "importancia_pct": "Importancia Relativa (%)"}
                 ),
                 width="stretch"
             )
@@ -447,34 +447,34 @@ def run_streamlit_app():
         st.subheader("Validación y Comparativa de Modelos")
         st.markdown("Validación experimental sobre el conjunto de prueba independiente de la encuesta SBS/CAF 2022:")
 
-        if benchmark_data and "resumen_comparativo" in benchmark_data:
-            df_bench = pd.DataFrame(benchmark_data["resumen_comparativo"])
+        if datos_benchmark and "resumen_comparativo" in datos_benchmark:
+            df_bench = pd.DataFrame(datos_benchmark["resumen_comparativo"])
             st.dataframe(df_bench, width="stretch")
 
-            if "comparacion_base_vs_optimizado" in benchmark_data:
+            if "comparacion_base_vs_optimizado" in datos_benchmark:
                 st.markdown("##### Hiperparámetros base vs optimizados con Optuna (test):")
-                st.dataframe(pd.DataFrame(benchmark_data["comparacion_base_vs_optimizado"]), width="stretch")
+                st.dataframe(pd.DataFrame(datos_benchmark["comparacion_base_vs_optimizado"]), width="stretch")
 
-            m = {k: v["metricas"] for k, v in benchmark_data["modelos"].items()}
+            m = {k: v["metricas"] for k, v in datos_benchmark["modelos"].items()}
             xgb_m, rf_m, lr_m = m["XGBoost_Propuesto"], m["Random_Forest"], m["Regresion_Logistica"]
-            supera = "supera" if xgb_m["ks_stat_pct"] >= 30 else "no alcanza"
+            supera = "supera" if xgb_m["ks_pct"] >= 30 else "no alcanza"
             optuna_txt = (
                 "los tres modelos se ajustaron con Optuna (TPE) y validación cruzada estratificada de 5 folds "
                 "solo sobre train; el set de prueba no participó en la búsqueda."
-                if benchmark_data.get("hiperparametros_optimizados")
+                if datos_benchmark.get("hiperparametros_optimizados")
                 else "se usaron los hiperparámetros base (no se encontró models/best_params.json)."
             )
 
             st.markdown("##### Cumplimiento de Estándares SBS:")
             st.markdown(
                 f"""
-- **KS (por deciles de riesgo):** XGBoost llega a **{xgb_m['ks_stat_pct']:.2f}%** y {supera} el piso de referencia de **30%**; Random Forest {rf_m['ks_stat_pct']:.2f}% y Regresión Logística {lr_m['ks_stat_pct']:.2f}%.
+- **KS (por deciles de riesgo):** XGBoost llega a **{xgb_m['ks_pct']:.2f}%** y {supera} el piso de referencia de **30%**; Random Forest {rf_m['ks_pct']:.2f}% y Regresión Logística {lr_m['ks_pct']:.2f}%.
 - **AUC-ROC:** XGBoost **{xgb_m['auc_roc']:.4f}**, Random Forest {rf_m['auc_roc']:.4f} y Regresión Logística {lr_m['auc_roc']:.4f}.
 - **Hiperparámetros:** {optuna_txt}
-- **`scale_pos_weight` ≈ {model.scale_pos_weight:.2f}:** negativos/positivos del set de train; compensa el desbalance de mora y evita el sesgo hacia aprobar.
+- **`scale_pos_weight` ≈ {modelo.scale_pos_weight:.2f}:** negativos/positivos del set de train; compensa el desbalance de mora y evita el sesgo hacia aprobar.
 """
             )
 
 
 if __name__ == "__main__":
-    run_streamlit_app()
+    ejecutar_app()

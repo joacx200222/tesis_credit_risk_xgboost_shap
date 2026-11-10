@@ -15,7 +15,7 @@
     "n_jobs": -1
   },
   "scale_pos_weight": 3.0,
-  "feature_names": [
+  "nombres_variables": [
     "edad",
     "carga_familiar_adultos",
     "carga_familiar_ninos",
@@ -111,7 +111,7 @@
     "credito_formal_negado_No",
     "credito_formal_negado_Sí"
   ],
-  "feature_importances_": [
+  "importancias": [
     0.016058284789323807,
     0.013360681012272835,
     0.0,
@@ -207,5 +207,5 @@
     0.01399265881627798,
     0.0
   ],
-  "is_fitted": true
+  "entrenado": true
 }

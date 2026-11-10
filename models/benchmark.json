@@ -28,17 +28,17 @@
       "nombre_mostrar": "Regresión Logística (Scorecard Tradicional)",
       "tipo": "Paramétrico Lineal",
       "metricas": {
-        "threshold": 0.5,
+        "umbral": 0.5,
         "auc_roc": 0.667,
         "pr_auc": 0.5116,
-        "ks_stat_pct": 28.28,
-        "ks_optimal_cutoff": 0.4718,
-        "f1_score": 0.4404,
+        "ks_pct": 28.28,
+        "ks_corte": 0.4718,
+        "f1": 0.4404,
         "recall_morosos": 0.5217,
         "precision_morosos": 0.381,
-        "specificity": 0.7111,
-        "accuracy": 0.663,
-        "confusion_matrix": {
+        "especificidad": 0.7111,
+        "exactitud": 0.663,
+        "matriz_confusion": {
           "TP": 24,
           "FP": 39,
           "TN": 96,
@@ -50,17 +50,17 @@
       "nombre_mostrar": "Random Forest Classifier",
       "tipo": "Ensamble Bagging",
       "metricas": {
-        "threshold": 0.5,
+        "umbral": 0.5,
         "auc_roc": 0.7064,
         "pr_auc": 0.5022,
-        "ks_stat_pct": 32.43,
-        "ks_optimal_cutoff": 0.4344,
-        "f1_score": 0.4466,
+        "ks_pct": 32.43,
+        "ks_corte": 0.4344,
+        "f1": 0.4466,
         "recall_morosos": 0.5,
         "precision_morosos": 0.4035,
-        "specificity": 0.7481,
-        "accuracy": 0.6851,
-        "confusion_matrix": {
+        "especificidad": 0.7481,
+        "exactitud": 0.6851,
+        "matriz_confusion": {
           "TP": 23,
           "FP": 34,
           "TN": 101,
@@ -72,17 +72,17 @@
       "nombre_mostrar": "XGBoost + Cost-Sensitive (Modelo de Tesis)",
       "tipo": "Gradient Boosting Decision Trees (GBDT)",
       "metricas": {
-        "threshold": 0.5,
+        "umbral": 0.5,
         "auc_roc": 0.7557,
         "pr_auc": 0.4875,
-        "ks_stat_pct": 44.09,
-        "ks_optimal_cutoff": 0.3774,
-        "f1_score": 0.4854,
+        "ks_pct": 44.09,
+        "ks_corte": 0.3774,
+        "f1": 0.4854,
         "recall_morosos": 0.5435,
         "precision_morosos": 0.4386,
-        "specificity": 0.763,
-        "accuracy": 0.7072,
-        "confusion_matrix": {
+        "especificidad": 0.763,
+        "exactitud": 0.7072,
+        "matriz_confusion": {
           "TP": 25,
           "FP": 32,
           "TN": 103,
@@ -93,26 +93,26 @@
   },
   "resumen_comparativo": [
     {
-      "Modelo": "Regresión Logística (Línea Base)",
+      "Modelo": "Regresión Logística",
       "AUC-ROC": 0.667,
       "PR-AUC": 0.5116,
-      "KS-Statistic (%)": 28.28,
+      "KS (%)": 28.28,
       "F1-Score": 0.4404,
       "Recall Morosos": 0.5217
     },
     {
-      "Modelo": "Random Forest (Línea Base)",
+      "Modelo": "Random Forest",
       "AUC-ROC": 0.7064,
       "PR-AUC": 0.5022,
-      "KS-Statistic (%)": 32.43,
+      "KS (%)": 32.43,
       "F1-Score": 0.4466,
       "Recall Morosos": 0.5
     },
     {
-      "Modelo": "XGBoost (Modelo Propuesto SBS)",
+      "Modelo": "XGBoost (propuesto)",
       "AUC-ROC": 0.7557,
       "PR-AUC": 0.4875,
-      "KS-Statistic (%)": 44.09,
+      "KS (%)": 44.09,
       "F1-Score": 0.4854,
       "Recall Morosos": 0.5435
     }

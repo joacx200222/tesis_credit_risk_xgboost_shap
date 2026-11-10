@@ -19,7 +19,7 @@ Pipeline de aprendizaje supervisado que estima la probabilidad de mora (PD) de s
 
 Los tres modelos usan hiperparámetros optimizados con Optuna (validación cruzada de 5 folds sobre train). Con los hiperparámetros base fijos, los resultados en test eran: Regresión Logística 0.6799 / 29.95%, Random Forest 0.7240 / 35.78% y XGBoost 0.7134 / 33.67%. La optimización mejoró a XGBoost y bajó levemente a los otros dos en test, aunque los tres mejoraron en validación cruzada.
 
-Detalle completo (PR-AUC, F1, recall, matriz de confusión) en `models/benchmark_results.json`. Inferencia + explicación TreeSHAP: ~30–50 ms por solicitud.
+Detalle completo (PR-AUC, F1, recall, matriz de confusión) en `models/benchmark.json`. Inferencia + explicación TreeSHAP: ~30–50 ms por solicitud.
 
 ## Estructura del repositorio (CRISP-DM)
 
@@ -30,24 +30,24 @@ tesis_credit_risk_xgboost_shap/
 │   ├── raw/dataset_sbs_caf_2022.csv               # Base extraída y enriquecida (1,201 registros)
 │   └── processed/{train,val,test}.csv             # Partición estratificada 70/15/15 (840/180/181)
 ├── models/
-│   ├── preprocessor.json                          # Preprocesador ajustado (94 variables de salida)
-│   ├── xgboost_credit_model{,_native}.json        # Metadatos + modelo nativo de XGBoost
-│   ├── best_params.json                           # Mejores hiperparámetros encontrados por Optuna
-│   ├── benchmark_results.json                     # Comparativa de los 3 modelos (base vs optimizado)
-│   ├── shap_summary_stats.json                    # Valor base e importancia global SHAP
+│   ├── preprocesador.json                         # Preprocesador ajustado (94 variables de salida)
+│   ├── modelo_xgboost{,_nativo}.json              # Metadatos + modelo nativo de XGBoost
+│   ├── mejores_params.json                        # Mejores hiperparámetros encontrados por Optuna
+│   ├── benchmark.json                             # Comparativa de los 3 modelos (base vs optimizado)
+│   ├── resumen_shap.json                          # Valor base e importancia global SHAP
 │   └── shap_beeswarm.png                          # Explicabilidad global
 ├── src/
 │   ├── config.py                 # Rutas, variables, hiperparámetros y política de crédito
-│   ├── feature_engineering.py    # Ingesta del .dta, variable objetivo y 4 índices sintéticos
-│   ├── data_preprocessing.py     # Imputación, escalado robusto, One-Hot y partición estratificada
-│   ├── hyperparameter_tuning.py  # Optuna (TPE) + validación cruzada estratificada de 5 folds
-│   ├── model_training.py         # Regresión Logística vs Random Forest vs XGBoost
-│   ├── model_evaluation.py       # AUC-ROC, PR-AUC, KS, F1, pérdida esperada, score y decisión
-│   ├── explainability.py         # TreeSHAP, razones de acción adversa y dictamen
+│   ├── ingenieria_variables.py   # Ingesta del .dta, variable objetivo y 4 índices sintéticos
+│   ├── preprocesamiento.py       # Imputación, escalado robusto, One-Hot y partición estratificada
+│   ├── busqueda_hiperparametros.py # Optuna (TPE) + validación cruzada estratificada de 5 folds
+│   ├── entrenamiento.py          # Regresión Logística vs Random Forest vs XGBoost
+│   ├── evaluacion.py             # AUC-ROC, PR-AUC, KS, F1, pérdida esperada, score y decisión
+│   ├── explicabilidad.py         # TreeSHAP, razones de acción adversa y dictamen
 │   └── app.py                    # Prototipo web en Streamlit
 ├── tests/
 │   ├── test_pipeline.py              # Pruebas del pipeline completo y de TreeSHAP
-│   └── test_hyperparameter_tuning.py # Validación cruzada y búsqueda Optuna
+│   └── test_busqueda_hiperparametros.py # Validación cruzada y búsqueda Optuna
 ├── Dockerfile
 └── requirements.txt
 ```
@@ -57,10 +57,10 @@ tesis_credit_risk_xgboost_shap/
 | Fase | Módulo | Qué hace |
 | :--- | :--- | :--- |
 | 1. Comprensión del negocio | `config.py` | Piso KS ≥ 30%, LGD = 50%, política: PD ≤ 0.30 aprueba, ≤ 0.45 revisión manual, > 0.45 rechaza. |
-| 2. Comprensión de los datos | `feature_engineering.py` | Lee el `.dta` oficial y mapea las preguntas del cuestionario a 37 variables en 3 ejes. |
-| 3. Preparación de los datos | `feature_engineering.py`, `data_preprocessing.py` | Variable objetivo, 4 índices, imputación por mediana/moda, escalado mediana/IQR, One-Hot (94 variables) y partición estratificada 70/15/15. |
-| 4. Modelado | `hyperparameter_tuning.py`, `model_training.py` | Optimización de hiperparámetros de los 3 modelos con Optuna (búsqueda bayesiana TPE; XGBoost 100 intentos, Random Forest 60, Regresión Logística 30), maximizando el AUC promedio de una validación cruzada estratificada de 5 folds solo sobre train. Luego se entrena XGBoost con `scale_pos_weight` = negativos/positivos de train (≈ 3.0) frente a Regresión Logística y Random Forest balanceados. |
-| 5. Evaluación | `model_evaluation.py`, `explainability.py` | Métricas en el set de prueba y descomposición TreeSHAP. |
+| 2. Comprensión de los datos | `ingenieria_variables.py` | Lee el `.dta` oficial y mapea las preguntas del cuestionario a 37 variables en 3 ejes. |
+| 3. Preparación de los datos | `ingenieria_variables.py`, `preprocesamiento.py` | Variable objetivo, 4 índices, imputación por mediana/moda, escalado mediana/IQR, One-Hot (94 variables) y partición estratificada 70/15/15. |
+| 4. Modelado | `busqueda_hiperparametros.py`, `entrenamiento.py` | Optimización de hiperparámetros de los 3 modelos con Optuna (búsqueda bayesiana TPE; XGBoost 100 intentos, Random Forest 60, Regresión Logística 30), maximizando el AUC promedio de una validación cruzada estratificada de 5 folds solo sobre train. Luego se entrena XGBoost con `scale_pos_weight` = negativos/positivos de train (≈ 3.0) frente a Regresión Logística y Random Forest balanceados. |
+| 5. Evaluación | `evaluacion.py`, `explicabilidad.py` | Métricas en el set de prueba y descomposición TreeSHAP. |
 | 6. Despliegue | `app.py` | Originación individual, explicabilidad global y benchmark. |
 
 ### Variable objetivo (mora)
@@ -92,10 +92,10 @@ python -m venv venv
 venv\Scripts\activate            # Windows  (Linux/macOS: source venv/bin/activate)
 pip install -r requirements.txt
 
-python -m src.data_preprocessing      # Ingesta del .dta, índices, partición y preprocesador (~4 s)
-python -m src.hyperparameter_tuning   # Búsqueda Optuna + CV 5-fold (~10 min; genera models/best_params.json)
-python -m src.model_training          # Entrena y compara los 3 modelos, base vs optimizado (~10 s)
-python -m src.explainability          # Genera el beeswarm global y las estadísticas SHAP
+python -m src.preprocesamiento         # Ingesta del .dta, índices, partición y preprocesador (~4 s)
+python -m src.busqueda_hiperparametros # Búsqueda Optuna + CV 5-fold (~10 min; genera models/mejores_params.json)
+python -m src.entrenamiento            # Entrena y compara los 3 modelos, base vs optimizado (~10 s)
+python -m src.explicabilidad           # Genera el beeswarm global y las estadísticas SHAP
 
 python -m unittest discover tests -v
 streamlit run src/app.py         # http://localhost:8501

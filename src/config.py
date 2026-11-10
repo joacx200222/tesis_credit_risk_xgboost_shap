@@ -1,43 +1,43 @@
 from pathlib import Path
 
 # Rutas
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data"
-RAW_DATA_DIR = DATA_DIR / "raw"
-PROCESSED_DATA_DIR = DATA_DIR / "processed"
-MODELS_DIR = BASE_DIR / "models"
+DIR_BASE = Path(__file__).resolve().parent.parent
+DIR_DATOS = DIR_BASE / "data"
+DIR_CRUDOS = DIR_DATOS / "raw"
+DIR_PROCESADOS = DIR_DATOS / "processed"
+DIR_MODELOS = DIR_BASE / "models"
 
-RAW_DTA_PATH = BASE_DIR / "BD_Encuesta_Capacidades_Financieras_2022.dta"
-RAW_DATASET_CSV = RAW_DATA_DIR / "dataset_sbs_caf_2022.csv"
-PROCESSED_TRAIN_PATH = PROCESSED_DATA_DIR / "train.csv"
-PROCESSED_VAL_PATH = PROCESSED_DATA_DIR / "val.csv"
-PROCESSED_TEST_PATH = PROCESSED_DATA_DIR / "test.csv"
+RUTA_DTA = DIR_BASE / "BD_Encuesta_Capacidades_Financieras_2022.dta"
+RUTA_CSV_COMPLETO = DIR_CRUDOS / "dataset_sbs_caf_2022.csv"
+RUTA_TRAIN = DIR_PROCESADOS / "train.csv"
+RUTA_VAL = DIR_PROCESADOS / "val.csv"
+RUTA_TEST = DIR_PROCESADOS / "test.csv"
 
-PREPROCESSOR_PATH = MODELS_DIR / "preprocessor.json"
-XGBOOST_MODEL_JSON = MODELS_DIR / "xgboost_credit_model.json"
-BENCHMARK_RESULTS_PATH = MODELS_DIR / "benchmark_results.json"
-BEST_PARAMS_PATH = MODELS_DIR / "best_params.json"
-SHAP_SUMMARY_PATH = MODELS_DIR / "shap_summary_stats.json"
+RUTA_PREPROCESADOR = DIR_MODELOS / "preprocesador.json"
+RUTA_MODELO = DIR_MODELOS / "modelo_xgboost.json"
+RUTA_BENCHMARK = DIR_MODELOS / "benchmark.json"
+RUTA_MEJORES_PARAMS = DIR_MODELOS / "mejores_params.json"
+RUTA_RESUMEN_SHAP = DIR_MODELOS / "resumen_shap.json"
 
 # Partición y reproducibilidad
-RANDOM_STATE = 42
-TRAIN_SIZE = 0.70
-VAL_SIZE = 0.15  # test = el 15% restante
+SEMILLA = 42
+PROP_TRAIN = 0.70
+PROP_VAL = 0.15  # test = el 15% restante
 
 # Variable objetivo: pagó tarde o falló en sus pagos (pregunta F12_16)
-TARGET_COLUMN = "default"  # 1 = moroso, 0 = cumplidor
+COLUMNA_OBJETIVO = "default"  # 1 = moroso, 0 = cumplidor
 SCALE_POS_WEIGHT = 2.99    # 900 / 301 en la base completa; al entrenar se recalcula con train (630 / 210)
 
 # Variables por eje
 
 # Eje 1: sociodemográfico y ocupación
-NUMERICAL_SOCIODEMO_FEATURES = [
+NUMERICAS_SOCIODEMO = [
     "edad",
     "carga_familiar_adultos",
     "carga_familiar_ninos",
 ]
 
-CATEGORICAL_SOCIODEMO_FEATURES = [
+CATEGORICAS_SOCIODEMO = [
     "genero",               # "Hombre", "Mujer"
     "nivel_educacion",      # Primaria, Secundaria, Técnico, Universitario
     "departamento",         # Departamento de residencia (Perú)
@@ -47,7 +47,7 @@ CATEGORICAL_SOCIODEMO_FEATURES = [
 ]
 
 # Eje 2: inclusión digital y datos alternativos
-NUMERICAL_DIGITAL_FEATURES = [
+NUMERICAS_DIGITAL = [
     "frecuencia_yape_plin",             # 1: Nunca, 2: Poco, 3: Casi siempre, 4: Siempre
     "pago_celular_frecuencia",          # 1 a 5: Uso celular para cobros y pagos
     "uso_whatsapp",                     # 1 a 4: Frecuencia de mensajería instantánea
@@ -57,7 +57,7 @@ NUMERICAL_DIGITAL_FEATURES = [
     "puntualidad_pago_deudas",          # 1 a 5: Pago puntual de obligaciones financieras
 ]
 
-CATEGORICAL_DIGITAL_FEATURES = [
+CATEGORICAS_DIGITAL = [
     "adopcion_yape_plin",         # "Sí", "No" (Conoce o usa Yape/Plin/BIM)
     "tiene_billetera_activa",     # "Sí", "No" (Tenencia activa)
     "guarda_dinero_recibos",      # "Sí", "No" (Reserva fondos para facturas y servicios)
@@ -65,7 +65,7 @@ CATEGORICAL_DIGITAL_FEATURES = [
 ]
 
 # Eje 3: capacidad y comportamiento financiero
-NUMERICAL_CAPACITY_FEATURES = [
+NUMERICAS_CAPACIDAD = [
     "dificultad_emergencia_1000",   # 1 a 4: Dificultad para reunir S/ 1,000 ante emergencia
     "meses_resiliencia_desempleo",  # 1 (<1 sem) a 5 (>6 meses): Resiliencia ante desempleo
     "sobra_dinero_fin_mes",         # 1 a 5: Dinero sobrante al final del mes
@@ -73,7 +73,7 @@ NUMERICAL_CAPACITY_FEATURES = [
     "percepcion_sobreendeudado",    # 1 a 5: Sensación de tener demasiadas deudas
 ]
 
-CATEGORICAL_CAPACITY_FEATURES = [
+CATEGORICAS_CAPACIDAD = [
     "rango_ingreso",                # Tramo de ingresos mensuales en Soles
     "nivel_socioeconomico",         # NSE A, B, C, D, E
     "ingresos_estables",            # "Sí", "No" (Regularidad de ingresos)
@@ -89,25 +89,25 @@ CATEGORICAL_CAPACITY_FEATURES = [
     "credito_formal_negado",        # "Sí", "No" (Rechazo previo en banca/cajas)
 ]
 
-# Índices calculados en feature_engineering.py (0 a 1)
-NUMERICAL_DERIVED_FEATURES = [
+# Índices calculados en ingenieria_variables.py (0 a 1)
+INDICES = [
     "indice_inclusion_digital",
     "indice_resiliencia_financiera",
     "indice_vulnerabilidad_liquidez",
     "indice_cultura_pago",
 ]
 
-ALL_NUMERICAL_FEATURES = (
-    NUMERICAL_SOCIODEMO_FEATURES +
-    NUMERICAL_DIGITAL_FEATURES +
-    NUMERICAL_CAPACITY_FEATURES +
-    NUMERICAL_DERIVED_FEATURES
+VARIABLES_NUMERICAS = (
+    NUMERICAS_SOCIODEMO +
+    NUMERICAS_DIGITAL +
+    NUMERICAS_CAPACIDAD +
+    INDICES
 )
 
-ALL_CATEGORICAL_FEATURES = (
-    CATEGORICAL_SOCIODEMO_FEATURES +
-    CATEGORICAL_DIGITAL_FEATURES +
-    CATEGORICAL_CAPACITY_FEATURES
+VARIABLES_CATEGORICAS = (
+    CATEGORICAS_SOCIODEMO +
+    CATEGORICAS_DIGITAL +
+    CATEGORICAS_CAPACIDAD
 )
 
 
@@ -115,11 +115,11 @@ ALL_CATEGORICAL_FEATURES = (
 SCORE_MIN = 0
 SCORE_MAX = 1000
 
-DEFAULT_LGD = 0.50  # para la pérdida esperada EL = PD * EAD * LGD
+LGD = 0.50  # para la pérdida esperada EL = PD * EAD * LGD
 
 # Score = 1000 * (1 - PD). Aprueba si PD <= 0.30, revisión manual hasta 0.45, rechaza por encima.
-THRESHOLD_LOW_RISK = 0.30
-THRESHOLD_MEDIUM_RISK = 0.45
+UMBRAL_APROBACION = 0.30
+UMBRAL_REVISION = 0.45
 
 # Opciones de los selectores de la app
 OPCIONES_DEPARTAMENTO = [
@@ -154,8 +154,8 @@ OPCIONES_RANGO_INGRESO = [
 
 OPCIONES_NSE = ["A/B", "C", "D", "E"]
 
-# Hiperparámetros base. Los optimizados salen de hyperparameter_tuning.py (models/best_params.json).
-XGBOOST_DEFAULT_PARAMS = {
+# Hiperparámetros base. Los optimizados salen de busqueda_hiperparametros.py (models/best_params.json).
+PARAMS_BASE_XGBOOST = {
     "n_estimators": 180,
     "max_depth": 4,
     "learning_rate": 0.04,
@@ -167,25 +167,25 @@ XGBOOST_DEFAULT_PARAMS = {
     "reg_lambda": 1.5,  # L2
     "scale_pos_weight": SCALE_POS_WEIGHT,
     "eval_metric": "auc",
-    "random_state": RANDOM_STATE,
+    "random_state": SEMILLA,
     "n_jobs": -1,
 }
 
-RF_DEFAULT_PARAMS = {
+PARAMS_BASE_RF = {
     "n_estimators": 150,
     "max_depth": 5,
     "min_samples_split": 5,
     "class_weight": "balanced",
-    "random_state": RANDOM_STATE,
+    "random_state": SEMILLA,
     "n_jobs": -1,
 }
 
-LOGREG_DEFAULT_PARAMS = {
+PARAMS_BASE_LOGREG = {
     "class_weight": "balanced",
     "max_iter": 1000,
-    "random_state": RANDOM_STATE,
+    "random_state": SEMILLA,
 }
 
 # Búsqueda con Optuna
-CV_FOLDS = 5
-OPTUNA_TRIALS = {"XGBoost": 100, "Random_Forest": 60, "Regresion_Logistica": 30}
+FOLDS_CV = 5
+INTENTOS_OPTUNA = {"XGBoost": 100, "Random_Forest": 60, "Regresion_Logistica": 30}

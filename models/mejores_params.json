@@ -4,7 +4,7 @@
   "random_state": 42,
   "modelos": {
     "XGBoost": {
-      "best_params": {
+      "mejores_params": {
         "n_estimators": 300,
         "max_depth": 2,
         "learning_rate": 0.027821804807197696,
@@ -17,12 +17,12 @@
       },
       "cv_auc": 0.6854,
       "cv_ks_pct": 30.32,
-      "baseline_cv_auc": 0.6491,
-      "baseline_cv_ks_pct": 23.81,
-      "n_trials": 100
+      "base_cv_auc": 0.6491,
+      "base_cv_ks_pct": 23.81,
+      "intentos": 100
     },
     "Random_Forest": {
-      "best_params": {
+      "mejores_params": {
         "n_estimators": 400,
         "max_depth": 3,
         "min_samples_split": 13,
@@ -31,19 +31,19 @@
       },
       "cv_auc": 0.6668,
       "cv_ks_pct": 29.37,
-      "baseline_cv_auc": 0.6589,
-      "baseline_cv_ks_pct": 26.35,
-      "n_trials": 60
+      "base_cv_auc": 0.6589,
+      "base_cv_ks_pct": 26.35,
+      "intentos": 60
     },
     "Regresion_Logistica": {
-      "best_params": {
+      "mejores_params": {
         "C": 0.024661008911604426
       },
       "cv_auc": 0.6353,
       "cv_ks_pct": 23.81,
-      "baseline_cv_auc": 0.6281,
-      "baseline_cv_ks_pct": 23.65,
-      "n_trials": 30
+      "base_cv_auc": 0.6281,
+      "base_cv_ks_pct": 23.65,
+      "intentos": 30
     }
   }
 }

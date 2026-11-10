@@ -1,0 +1,125 @@
+{
+  "valor_base": 0.055379509925842285,
+  "importancia": [
+    {
+      "variable": "indice_vulnerabilidad_liquidez",
+      "shap_medio_abs": 0.25415149331092834,
+      "nombre": "Vulnerabilidad Financiera Cotidiana",
+      "importancia_pct": 11.220396041870117
+    },
+    {
+      "variable": "pago_celular_frecuencia",
+      "shap_medio_abs": 0.21419933438301086,
+      "nombre": "Uso de Celular para Cobros/Pagos",
+      "importancia_pct": 9.456570625305176
+    },
+    {
+      "variable": "indice_resiliencia_financiera",
+      "shap_medio_abs": 0.21335774660110474,
+      "nombre": "Resiliencia ante Gastos Imprevistos",
+      "importancia_pct": 9.419415473937988
+    },
+    {
+      "variable": "puntualidad_pago_deudas",
+      "shap_medio_abs": 0.20433597266674042,
+      "nombre": "Puntualidad en Pago de Obligaciones",
+      "importancia_pct": 9.0211181640625
+    },
+    {
+      "variable": "sobra_dinero_fin_mes",
+      "shap_medio_abs": 0.1887863576412201,
+      "nombre": "Margen de Dinero Sobrante a Fin de Mes",
+      "importancia_pct": 8.334627151489258
+    },
+    {
+      "variable": "ingresos_estables_No",
+      "shap_medio_abs": 0.1437714695930481,
+      "nombre": "Ingresos Irregulares / Inestables",
+      "importancia_pct": 6.347289085388184
+    },
+    {
+      "variable": "percepcion_sobreendeudado",
+      "shap_medio_abs": 0.13774734735488892,
+      "nombre": "Percepción de Sobreendeudamiento",
+      "importancia_pct": 6.081333160400391
+    },
+    {
+      "variable": "nivel_socioeconomico_A/B",
+      "shap_medio_abs": 0.08458057790994644,
+      "nombre": "Nivel Socioeconomico A/B",
+      "importancia_pct": 3.7341020107269287
+    },
+    {
+      "variable": "edad",
+      "shap_medio_abs": 0.08222620189189911,
+      "nombre": "Edad del Solicitante",
+      "importancia_pct": 3.630160093307495
+    },
+    {
+      "variable": "ingresos_estables_Sí",
+      "shap_medio_abs": 0.05863664299249649,
+      "nombre": "Ingresos Mensuales Regulares",
+      "importancia_pct": 2.588717460632324
+    },
+    {
+      "variable": "uso_whatsapp",
+      "shap_medio_abs": 0.05101727694272995,
+      "nombre": "Frecuencia de Uso de WhatsApp",
+      "importancia_pct": 2.2523341178894043
+    },
+    {
+      "variable": "preferencia_efectivo",
+      "shap_medio_abs": 0.050383348017930984,
+      "nombre": "Preferencia por Efectivo vs. Digital",
+      "importancia_pct": 2.2243471145629883
+    },
+    {
+      "variable": "nivel_educacion_Secundaria Completa",
+      "shap_medio_abs": 0.047509945929050446,
+      "nombre": "Nivel Educacion Secundaria Completa",
+      "importancia_pct": 2.0974907875061035
+    },
+    {
+      "variable": "anota_recibos_vencer_No",
+      "shap_medio_abs": 0.04561549797654152,
+      "nombre": "No Lleva Control de Vencimientos",
+      "importancia_pct": 2.0138540267944336
+    },
+    {
+      "variable": "confianza_herramientas_digitales",
+      "shap_medio_abs": 0.03434009104967117,
+      "nombre": "Confianza en Gestión Financiera Digital",
+      "importancia_pct": 1.5160621404647827
+    },
+    {
+      "variable": "es_informal_Formalizado / Con RUC o Beneficios",
+      "shap_medio_abs": 0.030464623123407364,
+      "nombre": "Negocio Formalizado",
+      "importancia_pct": 1.344966173171997
+    },
+    {
+      "variable": "dificultad_emergencia_1000",
+      "shap_medio_abs": 0.02936539426445961,
+      "nombre": "Dificultad de Reunir S/ 1,000 en Emergencia",
+      "importancia_pct": 1.2964369058609009
+    },
+    {
+      "variable": "carga_familiar_adultos",
+      "shap_medio_abs": 0.028499661013484,
+      "nombre": "Adultos Dependientes en el Hogar",
+      "importancia_pct": 1.258216142654419
+    },
+    {
+      "variable": "indice_inclusion_digital",
+      "shap_medio_abs": 0.025697866454720497,
+      "nombre": "Índice de Inclusión Digital (Yape/Plin)",
+      "importancia_pct": 1.134521245956421
+    },
+    {
+      "variable": "departamento_Amazonas",
+      "shap_medio_abs": 0.023891525343060493,
+      "nombre": "Departamento Amazonas",
+      "importancia_pct": 1.0547740459442139
+    }
+  ]
+}
