@@ -495,14 +495,24 @@ def run_streamlit_app():
                 st.markdown("##### Hiperparámetros base vs optimizados con Optuna (test):")
                 st.dataframe(pd.DataFrame(benchmark_data["comparacion_base_vs_optimizado"]), use_container_width=True)
 
+            m = {k: v["metricas"] for k, v in benchmark_data["modelos"].items()}
+            xgb_m, rf_m, lr_m = m["XGBoost_Propuesto"], m["Random_Forest"], m["Regresion_Logistica"]
+            supera = "supera" if xgb_m["ks_stat_pct"] >= 30 else "no alcanza"
+            optuna_txt = (
+                "los tres modelos se ajustaron con Optuna (TPE) y validación cruzada estratificada de 5 folds "
+                "solo sobre train; el set de prueba no participó en la búsqueda."
+                if benchmark_data.get("hiperparametros_optimizados")
+                else "se usaron los hiperparámetros base (no se encontró models/best_params.json)."
+            )
+
             st.markdown("##### Cumplimiento de Estándares SBS:")
             st.markdown(
-                r"""
-                - **Estadístico Kolmogorov-Smirnov (KS, calculado por deciles de riesgo):** XGBoost alcanza un **KS de 44.09%**, superando el piso de referencia de **30%**; Random Forest llega a 32.43% y la Regresión Logística se queda en 28.28%.
-                - **Capacidad de Discriminación (AUC-ROC):** XGBoost logra un **AUC de 0.7557**, frente a 0.7064 de Random Forest y 0.6670 del scorecard lineal tradicional.
-                - **Optimización de hiperparámetros:** los tres modelos se ajustaron con Optuna (búsqueda bayesiana TPE) y validación cruzada estratificada de 5 folds solo sobre el set de entrenamiento; el set de prueba no participó en la búsqueda.
-                - **Ponderación Sensible al Costo (`scale_pos_weight` ≈ 3.0):** Calculada sobre el set de entrenamiento (630 cumplidores / 210 morosos), compensa el desbalance de ~25% de mora y evita el sesgo hacia aprobar.
-                """
+                f"""
+- **KS (por deciles de riesgo):** XGBoost llega a **{xgb_m['ks_stat_pct']:.2f}%** y {supera} el piso de referencia de **30%**; Random Forest {rf_m['ks_stat_pct']:.2f}% y Regresión Logística {lr_m['ks_stat_pct']:.2f}%.
+- **AUC-ROC:** XGBoost **{xgb_m['auc_roc']:.4f}**, Random Forest {rf_m['auc_roc']:.4f} y Regresión Logística {lr_m['auc_roc']:.4f}.
+- **Hiperparámetros:** {optuna_txt}
+- **`scale_pos_weight` ≈ {model.scale_pos_weight:.2f}:** negativos/positivos del set de train; compensa el desbalance de mora y evita el sesgo hacia aprobar.
+"""
             )
 
 
